@@ -11339,16 +11339,20 @@ local function get_best_target(config)
                     local isVisible = true
                     
                     if config.WallCheck then
-                        -- [V3 from Rage Hub] Use modern RaycastParams (cleaner + faster)
                         local origin = camera.CFrame.Position
-                        local direction = hitPart.Position - origin
-                        local params = RaycastParams.new()
-                        params.FilterDescendantsInstances = {lp.Character, v.Character, camera}
-                        params.FilterType = Enum.RaycastFilterType.Blacklist
-                        params.IgnoreWater = true
-                        local result = workspace:Raycast(origin, direction, params)
-                        if result and not result.Instance:IsDescendantOf(v.Character) then
-                            isVisible = false
+                        local targetPos = hitPart.Position
+                        local direction = (targetPos - origin)
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        rayParams.FilterDescendantsInstances = {lp.Character, v.Character}
+                        rayParams.IgnoreWater = true
+                        rayParams.RespectCanCollide = false
+                        local rayResult = workspace:Raycast(origin, direction, rayParams)
+                        if rayResult and rayResult.Instance then
+                            local hitPartName = rayResult.Instance.Name:lower()
+                            if not hitPartName:find("humanoid") and not hitPartName:find("force") then
+                                isVisible = false
+                            end
                         end
                     end
                     
@@ -11585,11 +11589,20 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                     -- Wall check for persistent target
                     if target and not HoldBot.TargetBehindWalls then
                         local origin = camera.CFrame.Position
-                        local direction = (target.Position - origin).Unit * (target.Position - origin).Magnitude
-                        local ray = Ray.new(origin, direction)
-                        local ignoreList = {lp.Character, persistChar, camera}
-                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
-                        if hit then target = nil end
+                        local targetPos = target.Position
+                        local direction = (targetPos - origin)
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        rayParams.FilterDescendantsInstances = {lp.Character, persistChar}
+                        rayParams.IgnoreWater = true
+                        rayParams.RespectCanCollide = false
+                        local rayResult = workspace:Raycast(origin, direction, rayParams)
+                        if rayResult and rayResult.Instance then
+                            local hitPartName = rayResult.Instance.Name:lower()
+                            if not hitPartName:find("humanoid") and not hitPartName:find("force") then
+                                target = nil
+                            end
+                        end
                     end
                 end
             end
@@ -11640,17 +11653,26 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
             local rawDeltaY = targetPos.Y - mousePos.Y
             
             if HoldBot.UseSmoothing then
-                -- Smooth movement with configurable smoothing value
-                local alpha = 1 / math.max(HoldBot.SmoothingValue, 1)
-                -- Frame-rate independence
-                local frameAlpha = 1 - math.exp(-deltaTime / (0.01 * HoldBot.SmoothingValue))
+                -- [V6] Improved smoothing: faster, more accurate, more human-like
+                local sm = math.max(HoldBot.SmoothingValue, 1)
+                -- Exponential smoothing with frame-rate independence
+                -- Lower smoothing value = faster response, higher = slower/smoother
+                local speedFactor = 35 / sm
+                local frameAlpha = 1 - math.exp(-deltaTime * speedFactor)
+                
+                -- Apply smoothing to raw delta
                 local moveX = rawDeltaX * frameAlpha
                 local moveY = rawDeltaY * frameAlpha
                 
-                -- Temporal blend for smoother transitions
-                local blendFactor = math.clamp(0.2 + (HoldBot.SmoothingValue * 0.02), 0.2, 0.6)
+                -- Temporal blend for human-like micro-corrections
+                -- Lower blend = more responsive, higher = smoother
+                local blendFactor = math.clamp(0.05 + (sm * 0.007), 0.05, 0.19)
                 moveX = holdBotPrevX * blendFactor + moveX * (1 - blendFactor)
                 moveY = holdBotPrevY * blendFactor + moveY * (1 - blendFactor)
+                
+                -- Deadzone: skip tiny movements to look more human
+                if math.abs(moveX) < 0.5 then moveX = 0 end
+                if math.abs(moveY) < 0.5 then moveY = 0 end
                 
                 holdBotPrevX = moveX
                 holdBotPrevY = moveY
@@ -13338,9 +13360,9 @@ HoldBotGroup:AddSlider("HoldBotSmoothingValue", {
         Text = "Smoothing Value",
         Default = HoldBot.SmoothingValue,
         Min = 1,
-        Max = 100,
+        Max = 20,
         Rounding = 0,
-        Tooltip = "1=Very fast, 100=Very slow tracking",
+        Tooltip = "1=Instant, 20=Smooth. Lower = faster snap.",
 })
 Options.HoldBotSmoothingValue:OnChanged(function()
         HoldBot.SmoothingValue = Options.HoldBotSmoothingValue.Value
@@ -15552,8 +15574,7 @@ function WallbangEngine:setup()
         if not engine.desyncActive or engine.currentDesyncTarget ~= targetPlayer then
             engine:desyncStart(targetPlayer)
             -- Wait one Heartbeat frame so the teleport takes effect server-side BEFORE
-            -- we send the shot data. (External working script uses task.wait(0.1) here.)
-            task.wait(0.1)
+            task.wait(0.05)
         end
 
         -- Cancel previous desync timer
@@ -15593,7 +15614,7 @@ function WallbangEngine:setup()
         end
 
         -- Auto-stop desync after 0.15 seconds (stable hit window — external script uses 0.15)
-        engine.desyncTimer = task.delay(0.15, function()
+        engine.desyncTimer = task.delay(0.3, function()
             engine:desyncStop()
         end)
 
@@ -15630,7 +15651,7 @@ function WallbangEngine:findTarget()
 
     local closest = nil
     local closestDist = math.huge
-    local MAX_DISTANCE = 200
+    local MAX_DISTANCE = 9999
 
     for _, plr in next, players:GetPlayers() do
         if plr == lp then continue end
@@ -15685,7 +15706,7 @@ function WallbangEngine:desyncStart(targetPlayer)
     local engine = self
     local desyncStartTime = tick()
     -- Safety: bound the desync to 0.5s max per shot (external script used continuous; we bound it)
-    local MAX_DESYNC_DURATION = 0.5
+    local MAX_DESYNC_DURATION = 0.4
 
     -- Save original CFrame/Velocity so we can restore on each render step
     -- (we re-save on every Heartbeat in case our position changed between frames)
@@ -15719,7 +15740,7 @@ function WallbangEngine:desyncStart(targetPlayer)
         -- TELEPORT: place our root 5 studs below the target (same as external working script)
         -- This is what the server sees — server validates "are we close enough to target for hit?"
         pcall(function()
-            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, -5, 0)
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, -3, 0)
         end)
 
         -- RESTORE on next render step (priority 101 = after most game code, before camera)
