@@ -1,16 +1,6 @@
---[[
-        WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
-
--- Continue with the main script below
-
--- ============================================================
--- [V4] ANTI-CHEAT BYPASS SYSTEM (from 25ms unlocker)
--- Disables anti-cheat scripts + monitors NetworkClient
--- ============================================================
 task.spawn(function()
     pcall(function()
-        -- 1. Block MiscellaneousController weak table creation
+
         local _stbl
         _stbl = hookfunction(getrenv().setmetatable, newcclosure(function(tbl, mt)
             if mt and typeof(mt) == "table" and rawget(mt, "__mode") == "kv" then
@@ -23,7 +13,6 @@ task.spawn(function()
         end))
     end)
 
-    -- 2. Disable anti-cheat scripts by name
     pcall(function()
         local function _procAC(o)
             pcall(function()
@@ -40,17 +29,16 @@ task.spawn(function()
                 end
             end)
         end
-        -- Scan existing descendants
+
         pcall(function()
             for _, o in ipairs(game:GetDescendants()) do
                 _procAC(o)
             end
         end)
-        -- Monitor new descendants
+
         pcall(function() game.DescendantAdded:Connect(_procAC) end)
     end)
 
-    -- 3. Monitor NetworkClient for anti-cheat injections
     pcall(function()
         local _nc = game:GetService("NetworkClient")
         if not _nc then return end
@@ -66,7 +54,6 @@ task.spawn(function()
         end)
     end)
 
-    -- 4. Hook LocalScript3 ban/kick functions
     pcall(function()
         local _rf = game:GetService("ReplicatedFirst")
         local _tgt = _rf:WaitForChild("LocalScript3", 10)
@@ -92,22 +79,14 @@ task.spawn(function()
     end)
 end)
 
--- ============================================================
--- [V4] COSMETIC UNLOCKER (from 25ms unlocker)
--- Unlocks ALL skins/wraps/charms/dances/emotes for free
--- Saves equipped cosmetics to rivals_unlocker_config.json
--- OFF by default — toggle "Skin Changer" in Misc tab to enable
--- ============================================================
 local CosmeticUnlocker = {
-    Enabled = false,  -- [V5] OFF by default — user controls it via UI
-    _active = false,  -- Internal: tracks if the hooks are installed
-    _eq = {},         -- equipped cosmetics per weapon
-    _favs = {},       -- favorited cosmetics
+    Enabled = false,
+    _active = false,
+    _eq = {},
+    _favs = {},
     _saveLock = false,
 }
 
--- The actual unlocker logic, defined as a function so we can call it on toggle
--- [V6] Improved: retry mechanism + remove _active guard so it can re-trigger
 local function _startCosmeticUnlocker()
     pcall(function()
         local _plrs    = game:GetService("Players")
@@ -226,7 +205,6 @@ local function _startCosmeticUnlocker()
 
         _loadCfg()
 
-        -- Override OwnsCosmetic functions — always return true for skin types
         _cosLib.OwnsCosmeticNormally = function(self, inv, nm, wep)
             local c = _cosLib.Cosmetics[nm]
             if c and c.Type == "Skin" then return true end
@@ -253,7 +231,6 @@ local function _startCosmeticUnlocker()
             return _origOwns(self, inv, nm, wep)
         end
 
-        -- Override PlayerDataController.Get to fake cosmetic inventory
         local _origGet = _datCtrl.Get
         _datCtrl.Get = function(self, key)
             local _val = _origGet(self, key)
@@ -289,7 +266,6 @@ local function _startCosmeticUnlocker()
             return _val
         end
 
-        -- Override GetWeaponData to apply equipped cosmetics
         local _origGetWep = _datCtrl.GetWeaponData
         _datCtrl.GetWeaponData = function(self, wn)
             local _d = _origGetWep(self, wn)
@@ -305,7 +281,6 @@ local function _startCosmeticUnlocker()
             return _m
         end
 
-        -- Hook EquipCosmetic + FavoriteCosmetic remotes
         local _fightCtrl
         pcall(function()
             _fightCtrl = require(_ctrl:WaitForChild("FighterController", 10))
@@ -375,7 +350,6 @@ local function _startCosmeticUnlocker()
             end
         end
 
-        -- Hook ClientItem._CreateViewModel to apply cosmetics to view models
         local _cliItem
         pcall(function()
             _cliItem = require(_lp.PlayerScripts.Modules.ClientReplicatedClasses.ClientFighter.ClientItem)
@@ -405,7 +379,6 @@ local function _startCosmeticUnlocker()
             end
         end
 
-        -- Hook ClientViewModel.new
         local _vmMod = _lp.PlayerScripts.Modules.ClientReplicatedClasses.ClientFighter.ClientItem:FindFirstChild("ClientViewModel")
         if _vmMod then
             local _CVM = require(_vmMod)
@@ -426,27 +399,18 @@ local function _startCosmeticUnlocker()
             end
         end
 
-        -- Export globally
         getgenv().CosmeticUnlocker = CosmeticUnlocker
-        CosmeticUnlocker._active = true  -- mark as active
+        CosmeticUnlocker._active = true
     end)
 end
 
--- Export the start function globally so the UI toggle can call it
 getgenv()._startCosmeticUnlocker = _startCosmeticUnlocker
 getgenv().CosmeticUnlocker = CosmeticUnlocker
 
---// CONFIG
 getgenv().whscript = "Zythera-X"
--- [V4] Ported: Anti-cheat bypass + Cosmetic unlocker + Rage Hub features (AutoBhop, CustomFOV, ShowFPS, Server Hop, better prediction, RaycastParams WallCheck)
 
--- [FIX] Webhook URL removed (was sending user data to external server)
 getgenv().webhookexecUrl = ""
 
---// ANTI-LOGGER / URL BLOCK
--- [FIX] Removed anti-logger hook (was blocking all URL output to hide webhook activity)
-
---// BLOCK GLOBAL ID CREATION
 if rawget(_G, "ID") then
     while true do end
 end
@@ -460,21 +424,40 @@ setmetatable(_G, {
     end
 })
 
---// EXECUTION INITIALIZATION
--- [FIX] Removed webhook logging (was sending user data to external Discord server)
+task.spawn(function()
+    pcall(function()
+        if not getgc or not hookfunction or not newcclosure or not debug.info then
+            return
+        end
+        local scanned = 0
+        local hooked = 0
+        for _, fn in pairs(getgc(true)) do
+            scanned = scanned + 1
+            if typeof(fn) == "function" then
+                local ok, src = pcall(function() return debug.info(fn, "s") end)
+                if ok and type(src) == "string" and src:find("AnalyticsPipelineController") then
+                    pcall(function()
+                        hookfunction(fn, newcclosure(function(...)
+                            return wait(8924896910)
+                        end))
+                        hooked = hooked + 1
+                    end)
+                end
+            end
+        end
 
---// CLONEREF & CLONEFUNCTION — Anti-detection wrappers (safe version)
--- [V7 FIX] Some executors (like Ugc) have cloneref but it returns nil or errors.
--- We wrap it in pcall and fall back to the original instance if anything fails.
+    end)
+end)
+
 local _raw_cloneref = cloneref or clonereference
 local function safe_cloneref(instance)
     if not instance then return instance end
-    if not _raw_cloneref then return instance end  -- executor doesn't have cloneref
+    if not _raw_cloneref then return instance end
     local ok, result = pcall(_raw_cloneref, instance)
     if ok and result and typeof(result) == "Instance" then
         return result
     end
-    return instance  -- fall back to original
+    return instance
 end
 local cloneref = safe_cloneref
 
@@ -490,7 +473,6 @@ local function safe_clonefunction(func)
 end
 local clonefunction = safe_clonefunction
 
---// SAFE FILE SYSTEM FUNCTIONS — Fixes executor compatibility
 local isfolder, isfile, listfiles = isfolder, isfile, listfiles
 
 if typeof(clonefunction) == "function" then
@@ -520,9 +502,6 @@ if typeof(clonefunction) == "function" then
     end
 end
 
---// SERVICE PROXY — Auto-cloneref service access via setmetatable
--- Access any service as: ServiceProxy.Players, ServiceProxy.Workspace, etc.
--- Each lookup automatically applies cloneref for anti-instance-tracking
 local ServiceProxy = setmetatable({}, {
     __index = function(_, serviceName)
         local success, service = pcall(function()
@@ -535,7 +514,6 @@ local ServiceProxy = setmetatable({}, {
     end
 })
 
---// CLONED SERVICE REFERENCES — Anti-instance-tracking
 local HttpService = cloneref(game:GetService("HttpService"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 local Workspace = cloneref(game:GetService("Workspace"))
@@ -545,48 +523,19 @@ local UserInputService = cloneref(game:GetService("UserInputService"))
 local StarterGui = cloneref(game:GetService("StarterGui"))
 local TweenService = cloneref(game:GetService("TweenService"))
 
--- [V2] Additional cloneref'd services for anti-detection
 local TeleportService = cloneref(game:GetService("TeleportService"))
 local Lighting = cloneref(game:GetService("Lighting"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local VirtualInputManager = cloneref(game:GetService("VirtualInputManager"))
 local Stats = cloneref(game:GetService("Stats"))
 
---// ANTI-CHEAT BYPASS — Minimal punishment-channel neutralizer (v3)
--- REVISED after user reported that v2 broke damage replication.
--- v2 hooked too broadly (VerifyClientEntity, Remotes.RemoteEvent, CameraSecurity,
--- defensive getgc sweep) — those are NOT punishment channels, they are gameplay
--- channels. Blocking them prevented the server from confirming hits → no damage.
---
--- v3 strategy: hook ONLY server-driven Ban/Kick punishment remotes.
--- These channels are NEVER used for normal gameplay — they exist purely for
--- moderation. Blocking OnClientEvent on them means: when the server tries to
--- kick/ban us (because it detected cheating), the kick never fires locally.
--- This is 100% safe for gameplay because Ban/Kick events carry no game state.
---
--- Channels we NOW LEAVE ALONE (v2 was wrong to hook these):
---   ✗ VerifyClientEntity  → server confirms our entity before replicating damage.
---                           Hooking this = server rejects our hits = NO DAMAGE.
---   ✗ Remotes.RemoteEvent → fired 3×/5s — that's LOW (a real heartbeat fires
---                           every frame = 60×/s). This is the shot/damage event
---                           channel, NOT AC telemetry. Hooking = NO DAMAGE.
---   ✗ CameraSecurity      → in Rivals this is the camera wall-collision system
---                           (prevents camera clipping through walls), NOT an AC.
---                           Hooking breaks camera + possibly hit detection.
---   ✗ generic getgc sweep → too many false positives; broke legitimate game code.
---
--- Multi-run: 0s / +8s / +25s / +60s to catch late-attached connections.
-
 local ACBypassState = {
     runs = 0,
     remoteHooks = 0,
-    hookedRemotes = {},  -- set of remote paths already hooked (avoids double-hook)
-    hookedFunctions = {}, -- set of function addresses already hooked
+    hookedRemotes = {},
+    hookedFunctions = {},
 }
 
--- Helper: hook every Function on a RemoteEvent's OnClientEvent to a no-op.
--- This blinds the channel — when the server fires it (to kick/ban us), our local
--- listener does nothing, so the kick/ban never executes on the client.
 local function hookRemoteOnClientEvent(remotePath, remote)
     if not remote or not remote:IsA("RemoteEvent") then return 0 end
     if ACBypassState.hookedRemotes[remotePath] then return 0 end
@@ -604,7 +553,7 @@ local function hookRemoteOnClientEvent(remotePath, remote)
                 ACBypassState.hookedFunctions[key] = true
                 pcall(function()
                     hookfunction(fn, function(...)
-                        return  -- swallow the kick/ban silently
+                        return
                     end)
                 end)
                 hooked = hooked + 1
@@ -615,10 +564,6 @@ local function hookRemoteOnClientEvent(remotePath, remote)
     return hooked
 end
 
--- Helper: neutralize a RemoteFunction's OnClientInvoke callback.
--- For moderation RemoteFunctions (FetchBannedPlayers, PardonRedFlags), the server
--- calls the client to ask for data/confirmation. Returning nil is safe — the
--- server treats nil as "no data" / "don't pardon", which is the default behavior.
 local function hookRemoteFunctionInvoke(remotePath, remote)
     if not remote or not remote:IsA("RemoteFunction") then return 0 end
     if ACBypassState.hookedRemotes[remotePath] then return 0 end
@@ -644,26 +589,22 @@ local function setupAnticheatBypass()
 
         local totalRemoteHooks = 0
 
-        -- PUNISHMENT REMOTES ONLY — these are the ONLY channels safe to blind.
-        -- Ban/Kick events carry no gameplay state; they exist purely to punish.
-        -- Hooking OnClientEvent means: when the server fires Ban/Kick at us,
-        -- our local listener does nothing → we don't get kicked.
         local punishmentRemotes = {
-            -- Moderator folder
-            {"Moderator", "Ban"},                    -- RemoteEvent
-            {"Moderator", "Kick"},                   -- RemoteEvent
-            {"Moderator", "Unban"},                  -- RemoteEvent
-            {"Moderator", "UpdateBanData"},          -- RemoteEvent
-            {"Moderator", "LockBans"},               -- RemoteEvent
-            {"Moderator", "PardonRedFlags"},         -- RemoteFunction
-            -- PrivateServer folder
-            {"PrivateServer", "BanPlayer"},          -- RemoteEvent
-            {"PrivateServer", "KickPlayer"},         -- RemoteEvent
-            {"PrivateServer", "UnbanPlayer"},        -- RemoteEvent
-            {"PrivateServer", "ReplicateBannedPlayers"}, -- RemoteEvent
-            {"PrivateServer", "FetchBannedPlayers"}, -- RemoteFunction
-            -- Matchmaking folder
-            {"Matchmaking", "KickPlayerFromParty"},  -- RemoteEvent
+
+            {"Moderator", "Ban"},
+            {"Moderator", "Kick"},
+            {"Moderator", "Unban"},
+            {"Moderator", "UpdateBanData"},
+            {"Moderator", "LockBans"},
+            {"Moderator", "PardonRedFlags"},
+
+            {"PrivateServer", "BanPlayer"},
+            {"PrivateServer", "KickPlayer"},
+            {"PrivateServer", "UnbanPlayer"},
+            {"PrivateServer", "ReplicateBannedPlayers"},
+            {"PrivateServer", "FetchBannedPlayers"},
+
+            {"Matchmaking", "KickPlayerFromParty"},
         }
         for _, path in ipairs(punishmentRemotes) do
             local parent = remotes:FindFirstChild(path[1])
@@ -692,12 +633,6 @@ task.delay(8, setupAnticheatBypass)
 task.delay(25, setupAnticheatBypass)
 task.delay(60, setupAnticheatBypass)
 
---// EXTRA AC BYPASS — Analytics/Log/Error/Kick neutralizer (user-requested layer)
--- Complements the punishment-remote bypass above by blinding additional AC channels:
---   1. AnalyticsPipeline.RemoteEvent.OnClientEvent — server telemetry that may flag cheaters
---   2. LogService.MessageOut — filters detection-related log messages from reaching server
---   3. ScriptContext.Error — reports existing error-listener connections (info only)
---   4. LocalPlayer:Kick() — intercepts :Kick() namecall to prevent local kick calls
 pcall(function()
     print("[Zythera-X] Extra AC bypass: initializing...")
 
@@ -708,7 +643,6 @@ pcall(function()
     local StarterGui = cloneref(game:GetService("StarterGui"))
     local localPlayer = Players.LocalPlayer
 
-    -- 1) AnalyticsPipeline remote hook — blind the OnClientEvent listeners
     task.spawn(function()
         pcall(function()
             local Remotes = RS:FindFirstChild("Remotes") or RS:WaitForChild("Remotes", 10)
@@ -726,7 +660,7 @@ pcall(function()
                 if conn and conn.Function then
                     pcall(function()
                         hookfunction(conn.Function, function(...)
-                            return -- swallow analytics event silently
+                            return
                         end)
                     end)
                     hooked = hooked + 1
@@ -736,7 +670,6 @@ pcall(function()
         end)
     end)
 
-    -- 2) LogService.MessageOut hook — filter AC-related log messages
     task.spawn(function()
         pcall(function()
             if not getconnections or not hookfunction then return end
@@ -749,7 +682,7 @@ pcall(function()
                         local orig = conn.Function
                         hookfunction(orig, function(message, messageType)
                             local lower = string.lower(tostring(message))
-                            -- Detection keywords that AC systems typically log
+
                             if string.find(lower, "cheat")
                             or string.find(lower, "exploit")
                             or string.find(lower, "hack")
@@ -761,7 +694,7 @@ pcall(function()
                             or string.find(lower, "unauthorized")
                             or string.find(lower, "tamper")
                             then
-                                return -- swallow AC telemetry log
+                                return
                             end
                             return orig(message, messageType)
                         end)
@@ -773,7 +706,6 @@ pcall(function()
         end)
     end)
 
-    -- 3) ScriptContext.Error — report existing error-listener connections
     task.spawn(function()
         pcall(function()
             if not getconnections then return end
@@ -783,10 +715,6 @@ pcall(function()
         end)
     end)
 
-    -- 4) LocalPlayer:Kick() — intercept via __namecall metamethod (most reliable method)
-    -- FIX: Use the correct hookmetamethod pattern (return value + newcclosure) to prevent
-    -- C stack overflow. Previous version used mt.__namecall which could re-trigger __namecall
-    -- and cause infinite recursion in game's ControlModule/CameraModule/ClientFighter callbacks.
     task.spawn(function()
         pcall(function()
             if not hookmetamethod or not getnamecallmethod then return end
@@ -796,7 +724,7 @@ pcall(function()
                 local method = getnamecallmethod()
                 if (method == "Kick" or method == "kick") and self == playerNamecall then
                     print("[Zythera-X] Blocked LocalPlayer:" .. method .. "() call")
-                    return -- swallow the kick
+                    return
                 end
                 return oldNamecall(self, ...)
             end))
@@ -804,7 +732,6 @@ pcall(function()
         end)
     end)
 
-    -- Success notification
     pcall(function()
         StarterGui:SetCore("SendNotification", {
             Text = "success!",
@@ -816,16 +743,11 @@ pcall(function()
     print("[Zythera-X] Extra AC bypass: started successfully")
 end)
 
--- Forward-declare WallbangStealthState so the rage-toggle-disable handler
--- (defined later in this file, but lexically before the Wallbang stealth block)
--- can reference it safely. The actual table is populated by applyWallbangMods() below.
-local WallbangStealthState  -- forward declaration; assigned later in the Wallbang stealth block
+local WallbangStealthState
 
 local player = Players.LocalPlayer
 local players = Players
 
---// INITIALIZE OBSIDIAN / LINORIA UI LIBRARY
--- [FIX] All external URL loads replaced with embedded code (no loadstring+HttpGet)
 local lucide_embedded_source = [=[
 local Lucide = {}
 
@@ -853,7 +775,7 @@ if writefile and isfolder and makefolder and getcustomasset then
 
                 writefile(
                         `lucide-icons/{spritesheet}.png`,
-                        nil  -- [FIX] Spritesheet URL removed - icons will use fallback rendering
+                        nil
                 )
         end
 
@@ -1000,8 +922,6 @@ local Buttons = {}
 local Tooltips = {}
 local Dialogues = {}
 
-
--- [FIX] BaseURL removed - using RobloxId directly instead of downloading from URLs
 local BaseURL = ""
 local CustomImageManager = {}
 local CustomImageManagerAssets = {
@@ -1112,8 +1032,7 @@ do
     end
 
     function CustomImageManager.DownloadAsset(AssetName: string, ForceRedownload: boolean?)
-        -- [FIX] No URL downloads - uses RobloxId directly from GetAsset fallback
-        -- Original code downloaded from URLs, now we skip that and use rbxassetid://
+
         return true, nil
     end
 
@@ -1128,16 +1047,14 @@ local Library = {
     RegistryMap = {};
     HudRegistry = {};
 
-    -- colors and font --
-    --// PREMIUM DEEP-BLACK THEME + CRIMSON ZX ACCENT
     FontColor = Color3.fromRGB(235, 235, 235);
-    MainColor = Color3.fromRGB(10, 10, 12);       -- deep black (was 28,28,28)
-    BackgroundColor = Color3.fromRGB(0, 0, 0);     -- pure black (was 20,20,20)
+    MainColor = Color3.fromRGB(10, 10, 12);
+    BackgroundColor = Color3.fromRGB(0, 0, 0);
 
-    AccentColor = Color3.fromRGB(225, 30, 30);     -- crimson red (was 200,30,30)
+    AccentColor = Color3.fromRGB(225, 30, 30);
     DisabledAccentColor = Color3.fromRGB(120, 120, 120);
 
-    OutlineColor = Color3.fromRGB(28, 28, 30);     -- subtle dark outline (was 50,50,50)
+    OutlineColor = Color3.fromRGB(28, 28, 30);
     DisabledOutlineColor = Color3.fromRGB(45, 45, 48);
 
     DisabledTextColor = Color3.fromRGB(142, 142, 142);
@@ -1147,16 +1064,13 @@ local Library = {
     Black = Color3.new(0, 0, 0);
     Font = Enum.Font.Code,
 
-    -- frames --
     OpenedFrames = {};
     DependencyBoxes = {};
     DependencyGroupboxes = {};
 
-    -- signals --
     UnloadSignals = {};
     Signals = {};
 
-    -- gui --
     ActiveTab = nil;
     TotalTabs = 0;
 
@@ -1165,9 +1079,8 @@ local Library = {
     KeybindContainer = nil;
     Window = { Holder = nil; Tabs = {}; };
 
-    -- variables --
     VideoLink = "";
-    
+
     Toggled = false;
     ToggleKeybind = nil;
 
@@ -1179,18 +1092,15 @@ local Library = {
 
     Unloaded = false;
 
-    -- notification --
     Notify = nil;
     NotifySide = "Left";
     ShowCustomCursor = true;
     ShowToggleFrameInKeybinds = true;
-    NotifyOnError = false; -- true = Library:Notify for SafeCallback (still warns in the developer console)
+    NotifyOnError = false;
 
-    -- addons --
     SaveManager = nil;
     ThemeManager = nil;
 
-    -- for better usage --
     Toggles = Toggles;
     Options = Options;
     Labels = Labels;
@@ -1203,15 +1113,14 @@ local Library = {
 }
 
 if RunService:IsStudio() then
-   Library.IsMobile = InputService.TouchEnabled and not InputService.MouseEnabled 
+   Library.IsMobile = InputService.TouchEnabled and not InputService.MouseEnabled
 else
-    pcall(function() Library.DevicePlatform = InputService:GetPlatform() end) -- For safety so the UI library doesn't error.
+    pcall(function() Library.DevicePlatform = InputService:GetPlatform() end)
     Library.IsMobile = (Library.DevicePlatform == Enum.Platform.Android or Library.DevicePlatform == Enum.Platform.IOS)
 end
 
 Library.MinSize = if Library.IsMobile then Vector2.new(550, 200) else Vector2.new(500, 350)
 
---// Functions \\--
 local function ApplyDPIScale(Position)
     return UDim2.new(Position.X.Scale, Position.X.Offset * DPIScale, Position.Y.Scale, Position.Y.Offset * DPIScale)
 end
@@ -1278,7 +1187,6 @@ local function Trim(Text: string)
     return Text:match("^%s*(.-)%s*$")
 end
 
---// Icon Module \\--
 type Icon = {
     Url: string,
     Id: number,
@@ -1343,7 +1251,6 @@ function Library:GetBetterColor(Color: Color3, Add: number): Color3
     )
 end
 
---// Library Functions \\--
 function Library:Validate(Table: { [string]: any }, Template: { [string]: any }): { [string]: any }
     if typeof(Table) ~= "table" then
         return Template
@@ -1364,15 +1271,15 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
     return Table
 end
 
-function Library:SetDPIScale(value: number) 
+function Library:SetDPIScale(value: number)
     assert(type(value) == "number", "Expected type number for DPI scale but got " .. typeof(value))
-    
+
     DPIScale = value / 100
     Library.MinSize = (if Library.IsMobile then Vector2.new(550, 200) else Vector2.new(500, 350)) * DPIScale
 end
 
 function Library:SafeCallback(Func, ...)
-    
+
     if not (Func and typeof(Func) == "function") then
         return
     end
@@ -1462,7 +1369,7 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
                 if IsMainWindow == true and Library.CantDragForced == true then
                     return
                 end
-           
+
                 local ObjPos = Vector2.new(
                     Mouse.X - Instance.AbsolutePosition.X,
                     Mouse.Y - Instance.AbsolutePosition.Y
@@ -1525,7 +1432,7 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
             end
         end)
         InputService.TouchEnded:Connect(function(Input)
-            if Input == DraggingInput then 
+            if Input == DraggingInput then
                 Dragging = false
             end
         end)
@@ -1541,7 +1448,7 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
                 if IsMainWindow == true and Library.CantDragForced == true then
                     return
                 end
-  
+
                 local ObjPos = Vector2.new(
                     Mouse.X - Parent.AbsolutePosition.X,
                     Mouse.Y - Parent.AbsolutePosition.Y
@@ -1563,7 +1470,7 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
                 end
             end
         end)
-    else  
+    else
         Library:MakeDraggable(Parent, Cutoff, IsMainWindow)
     end
 end
@@ -1574,7 +1481,7 @@ function Library:MakeResizable(Instance, MinSize)
     end
 
     Instance.Active = true
-    
+
     local ResizerImage_Size = 25 * DPIScale
     local ResizerImage_HoverTransparency = 0.5
 
@@ -1588,7 +1495,7 @@ function Library:MakeResizable(Instance, MinSize)
         Visible = true;
         ClipsDescendants = true;
         ZIndex = 1;
-        Parent = Instance;--Library.ScreenGui;
+        Parent = Instance;
     })
 
     local ResizerImage = Library:Create("ImageButton", {
@@ -1637,7 +1544,7 @@ function Library:MakeResizable(Instance, MinSize)
     end)
 
     ResizerImage.MouseMoved:Connect(function()
-        if OffsetPos then               
+        if OffsetPos then
             local MousePos = Vector2.new(Mouse.X - OffsetPos.X, Mouse.Y - OffsetPos.Y)
             local FinalSize = Vector2.new(math.clamp(MousePos.X - Instance.AbsolutePosition.X, MinSize.X, math.huge), math.clamp(MousePos.Y - Instance.AbsolutePosition.Y, MinSize.Y, math.huge))
             Instance.Size = UDim2.fromOffset(FinalSize.X, FinalSize.Y)
@@ -1673,7 +1580,7 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 
     local Label = Library:CreateLabel({
         Position = UDim2.fromOffset(3, 1);
-        
+
         TextSize = 14;
         Text = InfoStr;
         TextColor3 = Library.FontColor;
@@ -1742,7 +1649,7 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
                 return
             end
 
-            if Label.Text ~= DisabledInfoStr then 
+            if Label.Text ~= DisabledInfoStr then
                 UpdateText(DisabledInfoStr)
             end
         end
@@ -1767,7 +1674,7 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
         IsHovering = false
         Tooltip.Visible = false
     end))
-    
+
     if LibraryMainOuterFrame then
         GiveSignal(LibraryMainOuterFrame:GetPropertyChangedSignal("Visible"):Connect(function()
             if LibraryMainOuterFrame.Visible == false then
@@ -1794,7 +1701,7 @@ end
 
 function Library:MouseIsOverFrame(Frame, Input)
     local Pos = Mouse
-    if Library.IsMobile and Input then 
+    if Library.IsMobile and Input then
         Pos = Input.Position
     end
 
@@ -1813,7 +1720,7 @@ function Library:IsFrameInsideDialog(Frame)
 
     local Pos = Frame.AbsolutePosition
     local AbsPos, AbsSize = Library.ActiveDialog.Container.AbsolutePosition, Library.ActiveDialog.Container.AbsoluteSize
-   
+
     if Pos.X >= AbsPos.X and Pos.X <= AbsPos.X + AbsSize.X
         and Pos.Y >= AbsPos.Y and Pos.Y <= AbsPos.Y + AbsSize.Y then
 
@@ -1824,7 +1731,7 @@ function Library:IsFrameInsideDialog(Frame)
 end
 
 function Library:MouseIsOverOpenedFrame(Input)
-    -- Inside active dialog
+
     if Library.ActiveDialog then
         if Library:MouseIsOverFrame(Library.ActiveDialog.Container, Input) then
             return false
@@ -1833,7 +1740,6 @@ function Library:MouseIsOverOpenedFrame(Input)
         return true
     end
 
-    -- Inside opened frames
     for Frame, _ in next, Library.OpenedFrames do
         if Library:MouseIsOverFrame(Frame, Input) then
             return true
@@ -1857,9 +1763,9 @@ function Library:OnHighlight(HighlightInstance, Instance, Properties, Properties
     end
 
     local function doHighlight()
-        if condition and not condition() then 
+        if condition and not condition() then
             undoHighlight()
-            return 
+            return
         end
 
         if Library.ActiveDialog and not Library:IsFrameInsideDialog(Instance) then
@@ -1900,7 +1806,7 @@ function Library:MapValue(Value, MinA, MaxA, MinB, MaxB)
 end
 
 function Library:GetTextBounds(Text, Font, Size, Resolution)
-    -- Ignores rich text formatting --
+
     if typeof(Resolution) == "number" then
         Resolution = Vector2.new(Resolution, 10000)
     end
@@ -1952,15 +1858,6 @@ function Library:RemoveFromRegistry(Instance)
 end
 
 function Library:UpdateColorsUsingRegistry()
-    -- TODO: Could have an "active" list of objects
-    -- where the active list only contains Visible objects.
-
-    -- IMPL: Could setup .Changed events on the AddToRegistry function
-    -- that listens for the "Visible" propert being changed.
-    -- Visible: true => Add to active list, and call UpdateColors function
-    -- Visible: false => Remove from active list.
-
-    -- The above would be especially efficient for a rainbow menu color or live color-changing.
 
     for Idx, Object in next, Library.Registry do
         for Property, ColorIdx in next, Object.Properties do
@@ -1973,7 +1870,7 @@ function Library:UpdateColorsUsingRegistry()
     end
 end
 
-function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal) -- Only used for signals not attached to library instances, as those should be cleaned up on object destruction by Roblox
+function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal)
     local ConnectionType = typeof(Connection)
     if Connection and (ConnectionType == "RBXScriptConnection" or ConnectionType == "RBXScriptSignal") then
         table.insert(Library.Signals, Connection)
@@ -2018,9 +1915,8 @@ Library:GiveSignal(ScreenGui.DescendantRemoving:Connect(function(Instance)
     end
 end))
 
---// Templates \\--
-local Templates = { -- TO-DO: do it for missing elements.
-    --// Window \\--
+local Templates = {
+
     Window = {
         Title = "No Title",
         AutoShow = false,
@@ -2035,7 +1931,6 @@ local Templates = { -- TO-DO: do it for missing elements.
         Center = false
     },
 
-    --// Elements \\--
     Video = {
         Video = "",
         Looped = false,
@@ -2051,7 +1946,6 @@ local Templates = { -- TO-DO: do it for missing elements.
     }
 }
 
---// Addons \\--
 local BaseAddons = {}
 do
     local BaseAddonsFuncs = {}
@@ -2059,17 +1953,16 @@ do
         function BaseAddonsFuncs:AddKeyPicker(Idx, Info)
         local ParentObj = self
         local ToggleLabel = self.TextLabel
-        --local Container = self.Container;
 
         assert(Info.Default, string.format("AddKeyPicker (IDX: %s): Missing default value.", tostring(Idx)))
 
         local KeyPicker = {
-            Value = nil; -- Key
-            Modifiers = {}; -- Modifiers
-            DisplayValue = nil; -- Picker Text
+            Value = nil;
+            Modifiers = {};
+            DisplayValue = nil;
 
             Toggled = false;
-            Mode = Info.Mode or "Toggle"; -- Always, Toggle, Hold, Press
+            Mode = Info.Mode or "Toggle";
             Type = "KeyPicker";
             Callback = Info.Callback or function(Value) end;
             ChangedCallback = Info.ChangedCallback or function(New) end;
@@ -2078,7 +1971,7 @@ do
 
         if KeyPicker.Mode == "Press" then
             assert(ParentObj.Type == "Label", "KeyPicker with the mode \"Press\" can be only applied on Labels.")
-            
+
             KeyPicker.SyncToggleState = false
             Info.Modes = { "Press" }
             Info.Mode = "Press"
@@ -2094,7 +1987,6 @@ do
 
         local Picking = false
 
-        -- Special Keys
         local SpecialKeys = {
             ["MB1"] = Enum.UserInputType.MouseButton1,
             ["MB2"] = Enum.UserInputType.MouseButton2,
@@ -2107,7 +1999,6 @@ do
             [Enum.UserInputType.MouseButton3] = "MB3"
         }
 
-        -- Modifiers
         local Modifiers = {
             ["LAlt"] = Enum.KeyCode.LeftAlt,
             ["RAlt"] = Enum.KeyCode.RightAlt,
@@ -2154,7 +2045,7 @@ do
         end
 
         local AreModifiersHeld = function(Required)
-            if not (typeof(Required) == "table" and GetTableSize(Required) > 0) then 
+            if not (typeof(Required) == "table" and GetTableSize(Required) > 0) then
                 return true
             end
 
@@ -2172,7 +2063,7 @@ do
         end
 
         local IsInputDown = function(Input)
-            if not Input then 
+            if not Input then
                 return false
             end
 
@@ -2242,7 +2133,6 @@ do
             Parent = PickInner;
         })
 
-        -- Keybinds Text
         local KeybindsToggle = {}
         do
             local KeybindsToggleContainer = Library:Create("Frame", {
@@ -2345,14 +2235,14 @@ do
                 KeybindsToggleLabel.Position = if KeybindsToggle.Normal then UDim2.new(1, -13, 0, -1) else UDim2.new(1, 6, 0, -1)
             end
 
-            KeyPicker.DoClick = function(...) end --// make luau lsp shut up
+            KeyPicker.DoClick = function(...) end
             Library:GiveSignal(KeybindsToggleRegion.InputBegan:Connect(function(Input)
                 if Library.Unloaded then
                     return
                 end
 
                 if KeybindsToggle.Normal then return end
-                                        
+
                 if (Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame()) or Input.UserInputType == Enum.UserInputType.Touch then
                     KeyPicker.Toggled = not KeyPicker.Toggled
                     KeyPicker:DoClick()
@@ -2449,7 +2339,6 @@ do
             ModeButtons[Mode] = ModeButton
         end
 
-        -- Create Unbind button --
         do
             local UnbindInner = Library:Create("Frame", {
                 BackgroundColor3 = Library.BackgroundColor;
@@ -2477,7 +2366,7 @@ do
                 Parent = UnbindInner;
             })
 
-            KeyPicker.SetValue = function(...) end --// make luau lsp shut up
+            KeyPicker.SetValue = function(...) end
             function UnbindButton:UnbindKey()
                 KeyPicker:SetValue({ nil, KeyPicker.Mode, {} })
                 ModeSelectOuter.Visible = false
@@ -2526,7 +2415,7 @@ do
                     YSize = YSize + 18
                     local Label = Frame:FindFirstChild("TextLabel", true)
                     if not Label then continue end
-                    
+
                     local LabelSize = Label.TextBounds.X + 20
                     if (LabelSize > XSize) then
                         XSize = LabelSize
@@ -2541,7 +2430,7 @@ do
         function KeyPicker:GetState()
             if KeyPicker.Mode == "Always" then
                 return true
-            
+
             elseif KeyPicker.Mode == "Hold" then
                 local Key = KeyPicker.Value
                 if Key == "None" then
@@ -2571,8 +2460,8 @@ do
                     Key = nil
                     return nil
                 end
-                
-                if SpecialKeys[Key] == nil then 
+
+                if SpecialKeys[Key] == nil then
                     return Enum.KeyCode[Key]
                 end
 
@@ -2592,7 +2481,7 @@ do
 
             DisplayLabel.Text = KeyPicker.DisplayValue
 
-            if Mode ~= nil and ModeButtons[Mode] ~= nil then 
+            if Mode ~= nil and ModeButtons[Mode] ~= nil then
                 ModeButtons[Mode]:Select()
             end
 
@@ -2611,7 +2500,7 @@ do
 
         function KeyPicker:OnChanged(Callback)
             KeyPicker.Changed = Callback
-            -- Callback(KeyPicker.Value)
+
         end
 
         if ParentObj.Addons then
@@ -2649,7 +2538,6 @@ do
 
                 KeyPicker:Display("...")
 
-                -- Wait for an non modifier key --
                 local Input
                 local ActiveModifiers = {}
 
@@ -2665,7 +2553,6 @@ do
                 repeat
                     task.wait()
 
-                    -- Wait for any input --
                     KeyPicker:Display("...")
 
                     if GetInput() then
@@ -2674,12 +2561,10 @@ do
                         return
                     end
 
-                    -- Escape --
                     if Input.KeyCode == Enum.KeyCode.Escape then
                         break
                     end
 
-                    -- Handle modifier keys --
                     if IsModifierInput(Input) then
                         local StopLoop = false
 
@@ -2689,30 +2574,27 @@ do
                                 task.wait(0.075)
 
                                 if InputService:IsKeyDown(Input.KeyCode) then
-                                    -- Add modifier to the key list --
+
                                     if not table.find(ActiveModifiers, ModifiersInput[Input.KeyCode]) then
                                         ActiveModifiers[#ActiveModifiers + 1] = ModifiersInput[Input.KeyCode]
                                         KeyPicker:Display(table.concat(ActiveModifiers, " + ") .. " + ...")
                                     end
 
-                                    -- Wait for another input --
                                     if GetInput() then
                                         StopLoop = true
-                                        break -- Invalid Input
+                                        break
                                     end
 
-                                    -- Escape --
                                     if Input.KeyCode == Enum.KeyCode.Escape then
                                         break
                                     end
 
-                                    -- Stop loop if its a normal key --
                                     if not IsModifierInput(Input) then
                                         break
                                     end
                                 else
                                     if not table.find(ActiveModifiers, ModifiersInput[Input.KeyCode]) then
-                                        break -- Modifier is meant to be used as a normal key --
+                                        break
                                     end
                                 end
                             end
@@ -2725,7 +2607,7 @@ do
                         end
                     end
 
-                    break -- Input found, end loop
+                    break
                 until false
 
                 local Key = "Unknown"
@@ -2740,13 +2622,12 @@ do
                 KeyPicker.Toggled = false
                 KeyPicker:SetValue({ Key, KeyPicker.Mode, ActiveModifiers })
 
-                -- RunService.RenderStepped:Wait()
                 repeat task.wait() until not IsInputDown(Input) or InputService:GetFocusedTextBox()
                 Picking = false
 
             elseif PickerInput.UserInputType == Enum.UserInputType.MouseButton2 and not Library:MouseIsOverOpenedFrame() then
                 local visible = KeyPicker:GetModePickerVisibility()
-                
+
                 if visible == false then
                     for _, option in next, Options do
                         if option.Type == "KeyPicker" then
@@ -2765,7 +2646,7 @@ do
             end
 
             if KeyPicker.Value == "Unknown" then return end
-        
+
             if (not Picking) and (not InputService:GetFocusedTextBox()) then
                 local Key = KeyPicker.Value
                 local HoldingModifiers = AreModifiersHeld(KeyPicker.Modifiers)
@@ -2815,7 +2696,7 @@ do
                 KeyPicker:Update()
             end
         end))
-        
+
         KeyPicker:SetValue({ Info.Default, Info.Mode or "Toggle", Info.DefaultModifiers }, true)
         KeyPicker.DisplayFrame = PickOuter
 
@@ -2830,7 +2711,6 @@ do
     function BaseAddonsFuncs:AddColorPicker(Idx, Info)
         local ParentObj = self
         local ToggleLabel = self.TextLabel
-        --local Container = self.Container;
 
         assert(Info.Default, string.format("AddColorPicker (IDX: %s): Missing default value.", tostring(Idx)))
 
@@ -2883,8 +2763,6 @@ do
             Parent = ToggleLabel;
         })
 
-        -- Transparency image (source: SplixPrivateDrawingLibrary)
-        -- local CheckerFrame = 
         Library:Create("ImageLabel", {
             BorderSizePixel = 0;
             Size = UDim2.new(0, 27, 0, 13);
@@ -2893,11 +2771,6 @@ do
             Visible = not not Info.Transparency;
             Parent = DisplayFrame;
         })
-
-        -- 1/16/23
-        -- Rewrote this to be placed inside the Library ScreenGui
-        -- There was some issue which caused RelativeOffset to be way off
-        -- Thus the color picker would never show
 
         local PickerFrameOuter = Library:Create("Frame", {
             Name = "Color";
@@ -2966,7 +2839,6 @@ do
             Parent = SatVibMap;
         })
 
-        -- local CursorInner = 
         Library:Create("ImageLabel", {
             Size = UDim2.new(0, CursorOuter.Size.X.Offset - 2, 0, CursorOuter.Size.Y.Offset - 2);
             Position = UDim2.new(0, 1, 0, 1);
@@ -2992,7 +2864,7 @@ do
             Parent = HueSelectorOuter;
         })
 
-        local HueCursor = Library:Create("Frame", { 
+        local HueCursor = Library:Create("Frame", {
             BackgroundColor3 = Color3.new(1, 1, 1);
             AnchorPoint = Vector2.new(0, 0.5);
             BorderColor3 = Color3.new(0, 0, 0);
@@ -3058,8 +2930,8 @@ do
         })
 
         local TransparencyBoxOuter, TransparencyBoxInner, TransparencyCursor
-        
-        if Info.Transparency then 
+
+        if Info.Transparency then
             TransparencyBoxOuter = Library:Create("Frame", {
                 BorderColor3 = Color3.new(0, 0, 0);
                 Position = UDim2.fromOffset(4, 251);
@@ -3087,7 +2959,7 @@ do
                 Parent = TransparencyBoxInner;
             })
 
-            TransparencyCursor = Library:Create("Frame", { 
+            TransparencyCursor = Library:Create("Frame", {
                 BackgroundColor3 = Color3.new(1, 1, 1);
                 AnchorPoint = Vector2.new(0.5, 0);
                 BorderColor3 = Color3.new(0, 0, 0);
@@ -3097,13 +2969,12 @@ do
             })
         end
 
-        -- local DisplayLabel = 
         Library:CreateLabel({
             Size = UDim2.new(1, 0, 0, 14);
             Position = UDim2.fromOffset(5, 5);
             TextXAlignment = Enum.TextXAlignment.Left;
             TextSize = 14;
-            Text = ColorPicker.Title,--Info.Default;
+            Text = ColorPicker.Title,
             TextWrapped = false;
             ZIndex = 16;
             Parent = PickerFrameInner;
@@ -3186,7 +3057,7 @@ do
                 if Library.IsMobile then
                     Library.CanDrag = true
                 end
-                
+
                 self.Container.Visible = false
             end
 
@@ -3205,7 +3076,7 @@ do
                     TextXAlignment = Enum.TextXAlignment.Left,
                 })
 
-                Library:OnHighlight(Button, Button, 
+                Library:OnHighlight(Button, Button,
                     { TextColor3 = "AccentColor" },
                     { TextColor3 = "FontColor" }
                 )
@@ -3224,7 +3095,7 @@ do
                 Library:Notify("Copied color!", 2)
             end)
 
-            ColorPicker.SetValueRGB = function(...) end --// make luau lsp shut up
+            ColorPicker.SetValueRGB = function(...) end
             ContextMenu:AddOption("Paste color", function()
                 if not Library.ColorClipboard then
                     Library:Notify("You have not copied a color!", 2)
@@ -3261,7 +3132,6 @@ do
             table.insert(SequenceTable, ColorSequenceKeypoint.new(Hue, Color3.fromHSV(Hue, 1, 1)))
         end
 
-        -- local HueSelectorGradient =
         Library:Create("UIGradient", {
             Color = ColorSequence.new(SequenceTable);
             Rotation = 90;
@@ -3508,7 +3378,7 @@ do
 
             Multi = Info.Multi;
             Type = "Dropdown";
-            SpecialType = Info.SpecialType; -- can be either "Player" or "Team"
+            SpecialType = Info.SpecialType;
             Visible = if typeof(Info.Visible) == "boolean" then Info.Visible else true;
             Disabled = if typeof(Info.Disabled) == "boolean" then Info.Disabled else false;
             Callback = Info.Callback or function(Value) end;
@@ -3862,7 +3732,7 @@ do
 
                             Table:UpdateButton()
                             Dropdown:Display()
-                            
+
                             Library:UpdateDependencyBoxes()
                             Library:UpdateDependencyGroupboxes()
                             Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
@@ -3884,11 +3754,9 @@ do
 
                 Buttons[Button] = Table
             end
-            
+
             Scrolling.CanvasSize = UDim2.fromOffset(0, (Count * (20 * DPIScale)) + 1)
 
-            -- Workaround for silly roblox bug - not sure why it happens but sometimes the dropdown list will be empty
-            -- ... and for some reason refreshing the Visible property fixes the issue??????? thanks roblox!
             Scrolling.Visible = false
             Scrolling.Visible = true
 
@@ -3944,7 +3812,7 @@ do
             Dropdown.Visible = Visibility
 
             DropdownOuter.Visible = Dropdown.Visible
-            if not Dropdown.Visible then 
+            if not Dropdown.Visible then
                 Dropdown:CloseDropdown()
             end
         end
@@ -3978,7 +3846,7 @@ do
                 DropdownInnerSearch.Text = ""
                 DropdownInnerSearch.Visible = true
             end
-            
+
             ListOuter.Visible = true
             Library.OpenedFrames[ListOuter] = true
             DropdownArrow.Rotation = 180
@@ -3988,7 +3856,7 @@ do
         end
 
         function Dropdown:CloseDropdown()
-            if Library.IsMobile then         
+            if Library.IsMobile then
                 Library.CanDrag = true
             end
 
@@ -3997,7 +3865,7 @@ do
                 DropdownInnerSearch.Visible = false
                 ItemList.Visible = true
             end
-        
+
             ListOuter.Visible = false
             Library.OpenedFrames[ListOuter] = nil
             DropdownArrow.Rotation = 0
@@ -4009,11 +3877,6 @@ do
         function Dropdown:OnChanged(Func)
             Dropdown.Changed = Func
 
-            -- if Dropdown.Disabled then
-            --     return;
-            -- end;
-
-            -- Library:SafeCallback(Func, Dropdown.Value);
         end
 
         function Dropdown:SetValue(Value)
@@ -4046,7 +3909,7 @@ do
         end
 
         function Dropdown:SetText(...)
-            -- This is an Compat dropdown for Toggles, it doesn't have an TextLabel --
+
             return
         end
 
@@ -4146,7 +4009,6 @@ do
     end
 end
 
---// Groupbox Addons \\--
 local BaseGroupbox = {}
 do
     local BaseGroupboxFuncs = {}
@@ -4294,7 +4156,7 @@ do
             if select(1, ...) ~= nil then
                 assert(typeof(select(1, ...)) == "string", "Expected string for Idx, got " .. typeof(select(1, ...)))
             end
-            
+
             local Params = select(2, ...)
 
             Data.Text = Params.Text or ""
@@ -4307,12 +4169,11 @@ do
         end
 
         Data.OriginalText = Data.Text
-        
+
         local Label = {
             Type = "Label"
         }
 
-        -- local Blank = nil
         local Groupbox = self
         local Container = Groupbox.Container
 
@@ -4358,14 +4219,13 @@ do
             setmetatable(Label, BaseAddons)
         end
 
-        -- Blank = 
         Groupbox:AddBlank(5)
         Groupbox:Resize()
 
         table.insert(Groupbox.Elements, Label)
-        
+
         if Data.Idx then
-            -- Options[Data.Idx] = Label;
+
             Labels[Data.Idx] = Label
         else
             table.insert(Labels, Label)
@@ -4373,7 +4233,7 @@ do
 
         return Label
     end
-    
+
     function BaseGroupboxFuncs:AddButton(...)
         local Button = typeof(select(1, ...)) == "table" and select(1, ...) or {
             Text = select(1, ...),
@@ -4540,7 +4400,7 @@ do
                     if SubButton.TooltipTable then
                         SubButton.TooltipTable:Destroy()
                     end
-                
+
                     SubButton.TooltipTable = Library:AddToolTip(tooltip, disabledTooltip, self.Outer)
                     SubButton.TooltipTable.Disabled = SubButton.Disabled
                 end
@@ -4753,11 +4613,6 @@ do
         function Textbox:OnChanged(Func)
             Textbox.Changed = Func
 
-            -- if Textbox.Disabled then
-            --     return;
-            -- end;
-
-            -- Library:SafeCallback(Func, Textbox.Value);
         end
 
         function Textbox:UpdateColors()
@@ -4831,28 +4686,23 @@ do
             end)
         end
 
-        
-        -- thank you nicemike40 :)
-
         local function Update()
             local PADDING = 2
             local reveal = TextBoxContainer.AbsoluteSize.X
 
             if not Box:IsFocused() or Box.TextBounds.X <= reveal - 2 * PADDING then
-                -- we aren't focused, or we fit so be normal
+
                 Box.Position = UDim2.new(0, PADDING, 0, 0)
             else
-                -- we are focused and don't fit, so adjust position
+
                 local cursor = Box.CursorPosition
                 if cursor ~= -1 then
-                    -- calculate pixel width of text from start to cursor
+
                     local subtext = string.sub(Box.Text, 1, cursor-1)
                     local width = TextService:GetTextSize(subtext, Box.TextSize, Box.Font, Vector2.new(math.huge, math.huge)).X
 
-                    -- check if we're inside the box with the cursor
                     local currentCursorPos = Box.Position.X.Offset + width
 
-                    -- adjust if necessary
                     if currentCursorPos < PADDING then
                         Box.Position = UDim2.fromOffset(PADDING-width, 0)
                     elseif currentCursorPos > reveal - PADDING - 1 then
@@ -4938,7 +4788,7 @@ do
         })
 
         local ToggleLabel = Library:CreateLabel({
-            Size = UDim2.new(1, -19, 0, 11); -- size of toggle box (13) + size offset of previous layout (6)
+            Size = UDim2.new(1, -19, 0, 11);
             Position = UDim2.new(0, 19, 0, 0);
             TextSize = 14;
             Text = Info.Text;
@@ -5015,11 +4865,6 @@ do
         function Toggle:OnChanged(Func)
             Toggle.Changed = Func
 
-            -- if Toggle.Disabled then
-            --     return;
-            -- end;
-
-            -- Library:SafeCallback(Func, Toggle.Value);
         end
 
         function Toggle:SetValue(Bool)
@@ -5084,7 +4929,7 @@ do
                     if Library:MouseIsOverFrame(Addon.DisplayFrame) then return end
                 end
 
-                Toggle:SetValue(not Toggle.Value) -- Why was it not like this from the start?
+                Toggle:SetValue(not Toggle.Value)
                 Library:AttemptSave()
             end
         end)
@@ -5257,7 +5102,7 @@ do
             Library.RegistryMap[Fill].Properties.BackgroundColor3 = Slider.Disabled and "DisabledAccentColor" or "AccentColor"
             Library.RegistryMap[Fill].Properties.BorderColor3 = Slider.Disabled and "DisabledOutlineColor" or "AccentColorDark"
         end
-        
+
         function Slider:Display()
             local CustomDisplayText = nil
             if Info.FormatDisplayValue then
@@ -5275,7 +5120,7 @@ do
                     DisplayLabel.Text = string.format("%s%s%s", Slider.Prefix, FormattedValue, Slider.Suffix)
 
                 else
-                    DisplayLabel.Text = string.format("%s%s%s/%s%s%s", 
+                    DisplayLabel.Text = string.format("%s%s%s/%s%s%s",
                         Slider.Prefix, FormattedValue, Slider.Suffix,
                         Slider.Prefix, tostring(Slider.Max), Slider.Suffix)
                 end
@@ -5284,18 +5129,12 @@ do
             local X = Library:MapValue(Slider.Value, Slider.Min, Slider.Max, 0, 1)
             Fill.Size = UDim2.new(X, 0, 1, 0)
 
-            -- I have no idea what this is
             HideBorderRight.Visible = not (X == 1 or X == 0)
         end
 
         function Slider:OnChanged(Func)
             Slider.Changed = Func
 
-            -- if Slider.Disabled then
-            --     return;
-            -- end;
-            
-            -- Library:SafeCallback(Func, Slider.Value);
         end
 
         local function Round(Value)
@@ -5309,15 +5148,15 @@ do
         function Slider:GetValueFromXScale(X)
             return Round(Library:MapValue(X, 0, 1, Slider.Min, Slider.Max))
         end
-        
+
         function Slider:SetMax(Value)
             assert(Value > Slider.Min, "Max value cannot be less than the current min value.")
-            
+
             Slider.Value = math.clamp(Slider.Value, Slider.Min, Value)
             Slider.Max = Value
             Slider:Display()
         end
-        
+
         function Slider:SetMin(Value)
             assert(Value < Slider.Max, "Min value cannot be greater than the current max value.")
 
@@ -5423,7 +5262,7 @@ do
 
                 while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1 or Enum.UserInputType.Touch) do
                     local nMPos = Mouse.X
-                    local nXOffset = math.clamp(gPos + (nMPos - mPos) + Diff, 0, Slider.MaxSize) -- what in tarnation are these variable names
+                    local nXOffset = math.clamp(gPos + (nMPos - mPos) + Diff, 0, Slider.MaxSize)
                     local nXScale = Library:MapValue(nXOffset, 0, Slider.MaxSize, 0, 1)
 
                     local nValue = Slider:GetValueFromXScale(nXScale)
@@ -5443,7 +5282,7 @@ do
                 if Library.IsMobile then
                     Library.CanDrag = true
                 end
-                
+
                 for _, Side in pairs(Sides) do
                     if typeof(Side) == "Instance" then
                         if Side:IsA("ScrollingFrame") then
@@ -5487,7 +5326,7 @@ do
             Info.Default = 1
             warn(string.format("AddDropdown (IDX: %s): Missing default value, selected the first index instead. Pass `AllowNull` as true if this was intentional.", tostring(Idx)))
         end
-        
+
         Info.Searchable = if typeof(Info.Searchable) == "boolean" then Info.Searchable else false
         Info.FormatDisplayValue = if typeof(Info.FormatDisplayValue) == "function" then Info.FormatDisplayValue else nil
         Info.FormatListValue = if typeof(Info.FormatListValue) == "function" then Info.FormatListValue else nil
@@ -5503,7 +5342,7 @@ do
 
             Multi = Info.Multi;
             Type = "Dropdown";
-            SpecialType = Info.SpecialType; -- can be either "Player" or "Team"
+            SpecialType = Info.SpecialType;
             Visible = if typeof(Info.Visible) == "boolean" then Info.Visible else true;
             Disabled = if typeof(Info.Disabled) == "boolean" then Info.Disabled else false;
             Callback = Info.Callback or function(Value) end;
@@ -5865,7 +5704,7 @@ do
 
                             Table:UpdateButton()
                             Dropdown:Display()
-                            
+
                             Library:UpdateDependencyBoxes()
                             Library:UpdateDependencyGroupboxes()
                             Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
@@ -5884,8 +5723,6 @@ do
 
             Scrolling.CanvasSize = UDim2.fromOffset(0, (Count * (20 * DPIScale)) + 1)
 
-            -- Workaround for silly roblox bug - not sure why it happens but sometimes the dropdown list will be empty
-            -- ... and for some reason refreshing the Visible property fixes the issue??????? thanks roblox!
             Scrolling.Visible = false
             Scrolling.Visible = true
 
@@ -5989,7 +5826,7 @@ do
         end
 
         function Dropdown:CloseDropdown()
-            if Library.IsMobile then            
+            if Library.IsMobile then
                 Library.CanDrag = true
             end
 
@@ -6007,11 +5844,6 @@ do
         function Dropdown:OnChanged(Func)
             Dropdown.Changed = Func
 
-            -- if Dropdown.Disabled then
-            --     return;
-            -- end;
-
-            -- Library:SafeCallback(Func, Dropdown.Value);
         end
 
         function Dropdown:SetValue(Value)
@@ -6228,7 +6060,7 @@ do
             if not Viewport.Interactive then
                 return
             end
-            
+
             for _, Side in pairs(Library.Window.Tabs[Library.ActiveTab]:GetSides()) do
                 if typeof(Side) == "Instance" then
                     if Side:IsA("ScrollingFrame") then
@@ -6907,7 +6739,7 @@ do
         local BoxInner = Library:Create("Frame", {
             BackgroundColor3 = Library.BackgroundColor;
             BorderColor3 = Color3.new(0, 0, 0);
-            -- BorderMode = Enum.BorderMode.Inset;
+
             Size = UDim2.new(1, -2, 1, -2);
             Position = UDim2.new(0, 1, 0, 1);
             ZIndex = 4;
@@ -7000,7 +6832,6 @@ do
     end
 end
 
---// Keybinds UI \\--
 do
     local KeybindOuter = Library:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5);
@@ -7073,7 +6904,6 @@ do
     Library:MakeDraggable(KeybindOuter)
 end
 
---// Watermark \\--
 do
     local WatermarkOuter = Library:Create("Frame", {
         BorderColor3 = Color3.new(0, 0, 0);
@@ -7151,7 +6981,6 @@ do
     end
 end
 
---// Notifications \\--
 do
     Library.LeftNotificationArea = Library:Create("Frame", {
         BackgroundTransparency = 1;
@@ -7167,7 +6996,6 @@ do
         SortOrder = Enum.SortOrder.LayoutOrder;
         Parent = Library.LeftNotificationArea;
     })
-
 
     Library.RightNotificationArea = Library:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0);
@@ -7185,7 +7013,7 @@ do
         SortOrder = Enum.SortOrder.LayoutOrder;
         Parent = Library.RightNotificationArea;
     })
-        
+
     function Library:SetNotifySide(Side: string)
         Library.NotifySide = Side
     end
@@ -7305,13 +7133,13 @@ do
                     ZIndex = 11004,
                     Parent = InnerFrame,
                 })
-                
+
                 if not Data.IconColor then
                     Library:AddToRegistry(IconLabel, {
                         ImageColor3 = "FontColor";
                     }, true)
                 end
-                
+
                 if Side == "right" then
                     TextPosition = UDim2.new(1, -8, 0, 0)
                 end
@@ -7347,7 +7175,7 @@ do
         function Data:Resize()
             XSize, YSize = Library:GetTextBounds(NotifyLabel.Text, Library.Font, 14)
             YSize = YSize + 7
-            
+
             pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, XSize * DPIScale + 8 + 4 + ExtraWidth, 0, YSize), "Out", "Quad", 0.4, true)
         end
 
@@ -7375,7 +7203,7 @@ do
             if typeof(Data.Time) == "Instance" then
                 pcall(Data.Time.Destroy, Data.Time)
             end
-            
+
             if DeleteConnection then
                 DeleteConnection:Disconnect()
             end
@@ -7419,7 +7247,6 @@ do
     end
 end
 
---// Window \\--
 function Library:CreateWindow(...)
     local Arguments = { ... }
     local WindowInfo = Templates.Window
@@ -7454,7 +7281,7 @@ function Library:CreateWindow(...)
     local Window = {
         Tabs = {};
 
-        OriginalTitle = WindowInfo.Title; 
+        OriginalTitle = WindowInfo.Title;
         Title = WindowInfo.Title;
     }
 
@@ -7574,7 +7401,7 @@ function Library:CreateWindow(...)
         ZIndex = 2;
         Parent = MainSectionInner;
     })
-    
+
     local InnerVideoBackground = Library:Create("VideoFrame", {
         BackgroundColor3 = Library.MainColor;
         BorderMode = Enum.BorderMode.Inset;
@@ -7625,7 +7452,7 @@ function Library:CreateWindow(...)
             BackgroundImage.Visible = false
             return
         end
-        
+
         assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
         BackgroundImage.Image = Icon.Url
@@ -7806,7 +7633,7 @@ function Library:CreateWindow(...)
             SortOrder = Enum.SortOrder.LayoutOrder,
             Parent = DialogContainer,
         })
-        
+
         local _Sep2 = Library:Create("Frame", {
             BackgroundColor3 = Library.OutlineColor,
             BackgroundTransparency = 0,
@@ -7881,7 +7708,7 @@ function Library:CreateWindow(...)
                 for _, v in pairs(DialogContainer:GetDescendants()) do
                     if not v:IsA("GuiObject") then continue end
                     if v:GetAttribute("ZIndexApplied") then continue end
-                    
+
                     v:SetAttribute("ZIndexApplied", true)
                     v.ZIndex = v.ZIndex + 9003
                 end
@@ -7908,7 +7735,7 @@ function Library:CreateWindow(...)
         function Dialog:Dismiss()
             TweenService:Create(DialogScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.95 }):Play()
             TweenService:Create(DialogOverlay, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
-            
+
             task.delay(0.1, function()
                 DialogOverlay:Destroy()
             end)
@@ -8079,7 +7906,7 @@ function Library:CreateWindow(...)
                 TweenService:Create(ProgressBar, TweenInfo.new(WaitTime, Enum.EasingStyle.Linear), {
                     Size = UDim2.new(1, 0, 0, 2)
                 }):Play()
-                
+
                 task.delay(WaitTime, function()
                     ButtonWrap:SetDisabled(false)
 
@@ -8124,7 +7951,7 @@ function Library:CreateWindow(...)
                 Title = "WARNING",
                 Text = ""
             };
-            OriginalName = Name; 
+            OriginalName = Name;
             Name = Name;
             TableType = "Tab";
         }
@@ -8194,7 +8021,7 @@ do
             TopBarInner = Library:Create("Frame", {
                 BackgroundColor3 = Color3.fromRGB(117, 22, 17);
                 BorderColor3 = Color3.new();
-                -- BorderMode = Enum.BorderMode.Inset;
+
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 4;
@@ -8251,7 +8078,7 @@ do
                 ZIndex = 5;
                 Parent = TopBarScrollingFrame;
             })
-            
+
             Library:Create("Frame", {
                 BackgroundTransparency = 1;
                 Size = UDim2.new(1, 0, 0, 5);
@@ -8260,7 +8087,7 @@ do
                 Parent = TopBarInner;
             })
         end
-        
+
         local LeftSide = Library:Create("ScrollingFrame", {
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
@@ -8330,7 +8157,7 @@ do
                 local ChangeTick = tick()
                 SidesValues.Right = ChangeTick
                 task.wait(0.15)
-                
+
                 if SidesValues.Right == ChangeTick then
                     Library.CanDrag = true
                 end
@@ -8348,7 +8175,7 @@ do
                 local MaximumSize = math.floor(TabFrame.AbsoluteSize.Y / 3.25)
                 local Size = 27 + select(2, Library:GetTextBounds(TopBarTextLabel.Text, Library.Font, 14, Vector2.new(TopBarTextLabel.AbsoluteSize.X, math.huge)))
 
-                if Tab.WarningBox.LockSize == true and Size >= MaximumSize then 
+                if Tab.WarningBox.LockSize == true and Size >= MaximumSize then
                     Size = MaximumSize
                 end
 
@@ -8360,24 +8187,24 @@ do
 
                 TopBar.Size = UDim2.new(1, -13, 0, Size)
                 Size = Size + 10
-                
+
                 if TopBar.Position.Y.Offset > 0 then
                     LeftSide.Position = UDim2.new(0, 7, 0, 7 + Size)
                     LeftSide.Size = UDim2.new(0.5, -10, 1, -14 - Size)
-            
+
                     RightSide.Position = UDim2.new(0.5, 5, 0, 7 + Size)
                     RightSide.Size = UDim2.new(0.5, -10, 1, -14 - Size)
                 else
                     LeftSide.Position = UDim2.new(0, 7, 0, 7)
                     LeftSide.Size = UDim2.new(0.5, -10, 1, -14 - Size)
-            
+
                     RightSide.Position = UDim2.new(0.5, 5, 0, 7)
                     RightSide.Size = UDim2.new(0.5, -10, 1, -14 - Size)
                 end
             else
                 LeftSide.Position = UDim2.new(0, 7, 0, 7)
                 LeftSide.Size = UDim2.new(0.5, -10, 1, -14)
-        
+
                 RightSide.Position = UDim2.new(0.5, 5, 0, 7)
                 RightSide.Size = UDim2.new(0.5, -10, 1, -14)
             end
@@ -8401,7 +8228,7 @@ end
             TopBarInner.BorderColor3 = Tab.WarningBox.IsNormal == true and Library.OutlineColor or Color3.fromRGB(0, 0, 0)
             TopBarInner.BackgroundColor3 = Tab.WarningBox.IsNormal == true and Library.BackgroundColor or Color3.fromRGB(117, 22, 17)
             TopBarHighlight.BackgroundColor3 = Tab.WarningBox.IsNormal == true and Library.AccentColor or Color3.fromRGB(255, 75, 75)
-             
+
             TopBarLabel.TextColor3 = Tab.WarningBox.IsNormal == true and Library.FontColor or Color3.fromRGB(255, 55, 55)
             TopBarLabelStroke.Color = Tab.WarningBox.IsNormal == true and Library.Black or Color3.fromRGB(174, 3, 3)
 
@@ -8486,7 +8313,7 @@ end
             local BoxInner = Library:Create("Frame", {
                 BackgroundColor3 = Library.BackgroundColor;
                 BorderColor3 = Color3.new(0, 0, 0);
-                -- BorderMode = Enum.BorderMode.Inset;
+
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 4;
@@ -8509,7 +8336,6 @@ end
                 BackgroundColor3 = "AccentColor";
             })
 
-            -- local GroupboxLabel = 
             Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 18);
                 Position = UDim2.new(0, 4, 0, 2);
@@ -8587,7 +8413,7 @@ end
             local BoxInner = Library:Create("Frame", {
                 BackgroundColor3 = Library.BackgroundColor;
                 BorderColor3 = Color3.new(0, 0, 0);
-                -- BorderMode = Enum.BorderMode.Inset;
+
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 4;
@@ -8644,7 +8470,6 @@ end
                     BackgroundColor3 = "MainColor";
                 })
 
-                -- local ButtonLabel = 
                 Library:CreateLabel({
                     Size = UDim2.new(1, 0, 1, 0);
                     TextSize = 14;
@@ -8749,7 +8574,6 @@ end
                 Tab:AddBlank(3)
                 Tab:Resize()
 
-                -- Show first tab (number is 2 cus of the UIListLayout that also sits in that instance)
                 if #TabboxButtons:GetChildren() == 2 then
                     Tab:Show()
                 end
@@ -8780,7 +8604,6 @@ end
             Tab:Resize()
         end)
 
-        -- This was the first tab added, so we show it by default.
         Library.TotalTabs = Library.TotalTabs + 1
         if Library.TotalTabs == 1 then
             Tab:ShowTab()
@@ -8793,7 +8616,7 @@ end
     local TransparencyCache = {}
     local Toggled = false
     local Fading = false
-    
+
     function Window:Toggle(Toggling)
         if typeof(Toggling) == "boolean" and Toggling == Toggled then return end
         if Fading then return end
@@ -8808,7 +8631,7 @@ end
         end
 
         if Toggled then
-            -- A bit scuffed, but if we're going from not toggled -> toggled we want to show the frame immediately so that the fade is visible.
+
             Outer.Visible = true
 
             if DrawingLib.drawing_replaced ~= true and IsBadDrawingLib ~= true then
@@ -8823,7 +8646,7 @@ end
                     CursorOutline.Filled = false
                     CursorOutline.Color = Color3.new(0, 0, 0)
                     CursorOutline.Visible = Library.ShowCustomCursor
-                    
+
                     local OldMouseIconState = InputService.MouseIconEnabled
                     local ShowCursorBinding = Library.ShowCursorBinding
                     pcall(function() RunService:UnbindFromRenderStep(ShowCursorBinding) end)
@@ -8879,7 +8702,7 @@ end
 
             elseif Desc:IsA("Frame") or Desc:IsA("ScrollingFrame") then
                 table.insert(Properties, "BackgroundTransparency")
-                
+
             elseif Desc:IsA("UIStroke") then
                 table.insert(Properties, "Transparency")
             end
@@ -8913,11 +8736,11 @@ end
         return Window:Toggle(Toggling)
     end
 
-    Library:GiveSignal(InputService.InputBegan:Connect(function(Input, Processed) -- :sob:
+    Library:GiveSignal(InputService.InputBegan:Connect(function(Input, Processed)
         if Library.Unloaded then
             return
         end
-        
+
         if typeof(Library.ToggleKeybind) == "table" and Library.ToggleKeybind.Type == "KeyPicker" then
             if Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode.Name == Library.ToggleKeybind.Value then
                 task.spawn(Library.Toggle)
@@ -8937,7 +8760,7 @@ end
             Visible = true;
             Parent = ScreenGui;
         })
-    
+
         local ToggleUIInner = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.AccentColor;
@@ -8946,11 +8769,11 @@ end
             ZIndex = 201;
             Parent = ToggleUIOuter;
         })
-    
+
         Library:AddToRegistry(ToggleUIInner, {
             BorderColor3 = "AccentColor";
         })
-    
+
         local ToggleUIInnerFrame = Library:Create("Frame", {
             BackgroundColor3 = Color3.new(1, 1, 1);
             BorderSizePixel = 0;
@@ -8959,7 +8782,7 @@ end
             ZIndex = 202;
             Parent = ToggleUIInner;
         })
-    
+
         local ToggleUIGradient = Library:Create("UIGradient", {
             Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, Library:GetDarkerColor(Library.MainColor)),
@@ -8968,7 +8791,7 @@ end
             Rotation = -90;
             Parent = ToggleUIInnerFrame;
         })
-    
+
         Library:AddToRegistry(ToggleUIGradient, {
             Color = function()
                 return ColorSequence.new({
@@ -8977,7 +8800,7 @@ end
                 })
             end
         })
-    
+
         local ToggleUIButton = Library:Create("TextButton", {
             Position = UDim2.new(0, 5, 0, 0);
             Size = UDim2.new(1, -4, 1, 0);
@@ -8991,14 +8814,13 @@ end
             ZIndex = 203;
             Parent = ToggleUIInnerFrame;
         })
-    
+
         Library:MakeDraggableUsingParent(ToggleUIButton, ToggleUIOuter)
 
         ToggleUIButton.MouseButton1Down:Connect(function()
             Library:Toggle()
         end)
 
-        -- Lock
         local LockUIOuter = Library:Create("Frame", {
             BorderColor3 = Color3.new(0, 0, 0);
             Position = UDim2.new(0.008, 0, 0.075, 0);
@@ -9007,7 +8829,7 @@ end
             Visible = true;
             Parent = ScreenGui;
         })
-    
+
         local LockUIInner = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.AccentColor;
@@ -9016,11 +8838,11 @@ end
             ZIndex = 201;
             Parent = LockUIOuter;
         })
-    
+
         Library:AddToRegistry(LockUIInner, {
             BorderColor3 = "AccentColor";
         })
-    
+
         local LockUIInnerFrame = Library:Create("Frame", {
             BackgroundColor3 = Color3.new(1, 1, 1);
             BorderSizePixel = 0;
@@ -9029,7 +8851,7 @@ end
             ZIndex = 202;
             Parent = LockUIInner;
         })
-    
+
         local LockUIGradient = Library:Create("UIGradient", {
             Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, Library:GetDarkerColor(Library.MainColor)),
@@ -9038,7 +8860,7 @@ end
             Rotation = -90;
             Parent = LockUIInnerFrame;
         })
-    
+
         Library:AddToRegistry(LockUIGradient, {
             Color = function()
                 return ColorSequence.new({
@@ -9047,7 +8869,7 @@ end
                 })
             end
         })
-    
+
         local LockUIButton = Library:Create("TextButton", {
             Position = UDim2.new(0, 5, 0, 0);
             Size = UDim2.new(1, -4, 1, 0);
@@ -9061,9 +8883,9 @@ end
             ZIndex = 203;
             Parent = LockUIInnerFrame;
         })
-    
+
         Library:MakeDraggableUsingParent(LockUIButton, LockUIOuter)
-        
+
         LockUIButton.MouseButton1Down:Connect(function()
             Library.CantDragForced = not Library.CantDragForced
             LockUIButton.Text = Library.CantDragForced and "Unlock UI" or "Lock UI"
@@ -9103,7 +8925,7 @@ local function OnTeamChange()
     if Library.Unloaded then
         return
     end
-    
+
     local TeamList = GetTeams(false)
     local StringTeamList = GetTeams(true)
 
@@ -9120,7 +8942,6 @@ Library:GiveSignal(Players.PlayerRemoving:Connect(OnPlayerChange))
 Library:GiveSignal(Teams.ChildAdded:Connect(OnTeamChange))
 Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
 
---// Rainbow Handler \\--
 local RainbowStep = 0
 local Hue = 0
 
@@ -9144,7 +8965,6 @@ Library:GiveSignal(RunService.RenderStepped:Connect(function(Delta)
     end
 end))
 
-----
 getgenv().Linoria = Library
 if getgenv().skip_getgenv_linoria ~= true then getgenv().Library = Library end
 return Library
@@ -9154,8 +8974,8 @@ local ThemeManager = loadstring([=[
 local cloneref = (cloneref or clonereference or function(instance: any)
     return instance
 end)
-local clonefunction = (clonefunction or copyfunction or function(func) 
-    return func 
+local clonefunction = (clonefunction or copyfunction or function(func)
+    return func
 end)
 
 local httprequest = request or http_request or (http and http.request)
@@ -9164,14 +8984,13 @@ local getassetfunc = getcustomasset
 local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 local isfolder, isfile, listfiles = isfolder, isfile, listfiles;
 
-local assert = function(condition, errorMessage) 
+local assert = function(condition, errorMessage)
     if (not condition) then
         error(if errorMessage then errorMessage else "assert failed", 3)
     end
 end
 
 if typeof(clonefunction) == "function" then
-    -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
 
     local
         isfolder_copy,
@@ -9204,11 +9023,10 @@ local ThemeManager = {} do
         local ThemeFields = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor", "VideoLink" }
         ThemeManager.Folder = "ZytheraXHub"
         ThemeManager.DefaultTheme = 'Zythera'
-        -- if not isfolder(ThemeManager.Folder) then makefolder(ThemeManager.Folder) end
 
         ThemeManager.Library = nil
         ThemeManager.BuiltInThemes = {
-                --// Premium deep-black themes (crimson ZX accent)
+
                 ['Zythera']       = { 1, { FontColor = "ebebeb", MainColor = "0a0a0c", AccentColor = "e11e1e", BackgroundColor = "000000", OutlineColor = "1c1c1e" } },
                 ['Zythera Dark']  = { 2, { FontColor = "dcdcdc", MainColor = "060606", AccentColor = "b51515", BackgroundColor = "000000", OutlineColor = "141416" } },
                 ['Fatality']      = { 3, { FontColor = "ffffff", MainColor = "1e1842", AccentColor = "c50754", BackgroundColor = "191335", OutlineColor = "3c355d" } },
@@ -9226,13 +9044,11 @@ local ThemeManager = {} do
                         not (ThemeManager.Library and ThemeManager.Library.InnerVideoBackground)
                 then return; end;
 
-                --// Variables \\--
                 local videoInstance = ThemeManager.Library.InnerVideoBackground;
                 local extension = videoLink:match(".*/(.-)?") or videoLink:match(".*/(.-)$"); extension = tostring(extension);
                 local filename = string.sub(extension, 0, -6);
-                local _, domain = videoLink:match("^(https?://)([^/]+)"); domain = tostring(domain); -- _ is protocol
+                local _, domain = videoLink:match("^(https?://)([^/]+)"); domain = tostring(domain);
 
-                --// Check URL \\--
                 if videoLink == "" then
                         videoInstance:Pause();
                         videoInstance.Video = "";
@@ -9241,7 +9057,6 @@ local ThemeManager = {} do
                 end
                 if #extension > 5 and string.sub(extension, -5) ~= ".webm" then return; end;
 
-                --// Fetch Video Data \\--
                 local videoFile = ThemeManager.Folder .. "/themes/" .. string.gsub(domain .. filename, 0, 249) .. ".webm";
                 if not isfile(videoFile) then
                         local success, requestRes = pcall(httprequest, { Url = videoLink, Method = 'GET' })
@@ -9250,7 +9065,6 @@ local ThemeManager = {} do
                         writefile(videoFile, requestRes.Body)
                 end
 
-                --// Play Video \\--
                 videoInstance.Video = getassetfunc(videoFile);
                 videoInstance.Visible = true;
                 videoInstance:Play();
@@ -9260,7 +9074,6 @@ local ThemeManager = {} do
                 self.Library = library
         end
 
-        --// Folders \\--
         function ThemeManager:GetPaths()
             local paths = {}
 
@@ -9270,7 +9083,7 @@ local ThemeManager = {} do
                 end
 
                 paths[#paths + 1] = self.Folder .. '/themes'
-                
+
                 return paths
         end
 
@@ -9295,32 +9108,30 @@ local ThemeManager = {} do
                 self.Folder = folder;
                 self:BuildFolderTree()
         end
-        
-        --// Apply, Update theme \\--
+
         function ThemeManager:ApplyTheme(theme)
                 local customThemeData = self:GetCustomTheme(theme)
                 local data = customThemeData or self.BuiltInThemes[theme]
 
                 if not data then return end
 
-                -- custom themes are just regular dictionaries instead of an array with { index, dictionary }
                 if self.Library.InnerVideoBackground ~= nil then
                         self.Library.InnerVideoBackground.Visible = false
                 end
-                
+
                 local scheme = data[2]
                 for idx, col in next, customThemeData or scheme do
                         if idx == "VideoLink" then
                                 self.Library[idx] = col
-                                
+
                                 if self.Library.Options[idx] then
                                         self.Library.Options[idx]:SetValue(col)
                                 end
-                                
+
                                 ApplyBackgroundVideo(col)
                         else
                                 self.Library[idx] = Color3.fromHex(col)
-                                
+
                                 if self.Library.Options[idx] then
                                         self.Library.Options[idx]:SetValueRGB(Color3.fromHex(col))
                                 end
@@ -9331,7 +9142,7 @@ local ThemeManager = {} do
         end
 
         function ThemeManager:ThemeUpdate()
-                -- This allows us to force apply themes without loading the themes tab :)
+
                 if self.Library.InnerVideoBackground ~= nil then
                         self.Library.InnerVideoBackground.Visible = false
                 end
@@ -9350,7 +9161,6 @@ local ThemeManager = {} do
                 self.Library:UpdateColorsUsingRegistry()
         end
 
-        --// Get, Load, Save, Delete, Refresh \\--
         function ThemeManager:GetCustomTheme(file)
                 local path = self.Folder .. '/themes/' .. file .. '.json'
                 if not isfile(path) then
@@ -9359,7 +9169,7 @@ local ThemeManager = {} do
 
                 local data = readfile(path)
                 local success, decoded = pcall(HttpService.JSONDecode, HttpService, data)
-                
+
                 if not success then
                         return nil
                 end
@@ -9422,10 +9232,10 @@ local ThemeManager = {} do
 
                 local success = pcall(delfile, file)
                 if not success then return false, 'delete file error' end
-                
+
                 return true
         end
-        
+
         function ThemeManager:ReloadCustomThemes()
                 local list = listfiles(self.Folder .. '/themes')
 
@@ -9433,7 +9243,6 @@ local ThemeManager = {} do
                 for i = 1, #list do
                         local file = list[i]
                         if file:sub(-5) == '.json' then
-                                -- i hate this but it has to be done ...
 
                                 local pos = file:find('.json', 1, true)
                                 local start = pos
@@ -9453,7 +9262,6 @@ local ThemeManager = {} do
                 return out
         end
 
-        --// GUI \\--
         function ThemeManager:CreateThemeManager(groupbox)
                 groupbox:AddLabel('Background color'):AddColorPicker('BackgroundColor', { Default = self.Library.BackgroundColor });
                 groupbox:AddLabel('Main color') :AddColorPicker('MainColor', { Default = self.Library.MainColor });
@@ -9461,7 +9269,7 @@ local ThemeManager = {} do
                 groupbox:AddLabel('Outline color'):AddColorPicker('OutlineColor', { Default = self.Library.OutlineColor });
                 groupbox:AddLabel('Font color') :AddColorPicker('FontColor', { Default = self.Library.FontColor });
                 groupbox:AddInput('VideoLink', { Text = '.webm Video Background (Link)', Default = self.Library.VideoLink });
-                
+
                 local ThemesArray = {}
                 for Name, Theme in next, self.BuiltInThemes do
                         table.insert(ThemesArray, Name)
@@ -9484,7 +9292,7 @@ local ThemeManager = {} do
                 groupbox:AddDivider()
 
                 groupbox:AddInput('ThemeManager_CustomThemeName', { Text = 'Custom theme name' })
-                groupbox:AddButton('Create theme', function() 
+                groupbox:AddButton('Create theme', function()
                         local name = self.Library.Options.ThemeManager_CustomThemeName.Value
                         if name:gsub(" ", "") == "" then
                 self.Library:Notify("Invalid theme name (empty)", 2)
@@ -9538,11 +9346,11 @@ local ThemeManager = {} do
                 end)
                 groupbox:AddButton('Reset default', function()
                         local success = pcall(delfile, self.Folder .. '/themes/default.txt')
-                        if not success then 
+                        if not success then
                                 self.Library:Notify('Failed to reset default: delete file error')
                                 return
                         end
-                                
+
                         self.Library:Notify('Set default theme to nothing')
                         self.Library.Options.ThemeManager_CustomThemeList:SetValues(self:ReloadCustomThemes())
                         self.Library.Options.ThemeManager_CustomThemeList:SetValue(nil)
@@ -9584,21 +9392,20 @@ local SaveManager = loadstring([=[
 local cloneref = (cloneref or clonereference or function(instance: any)
     return instance
 end)
-local clonefunction = (clonefunction or copyfunction or function(func) 
-    return func 
+local clonefunction = (clonefunction or copyfunction or function(func)
+    return func
 end)
 
 local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 local isfolder, isfile, listfiles = isfolder, isfile, listfiles;
 
-local assert = function(condition, errorMessage) 
+local assert = function(condition, errorMessage)
     if (not condition) then
         error(if errorMessage then errorMessage else "assert failed", 3)
     end
 end
 
 if typeof(clonefunction) == "function" then
-    -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
 
     local
         isfolder_copy,
@@ -9715,13 +9522,12 @@ local SaveManager = {} do
 
     function SaveManager:IgnoreThemeSettings()
         self:SetIgnoreIndexes({
-            "BackgroundColor", "MainColor", "AccentColor", "OutlineColor", "FontColor", -- themes
-            "ThemeManager_ThemeList", 'ThemeManager_CustomThemeList', 'ThemeManager_CustomThemeName', -- themes
+            "BackgroundColor", "MainColor", "AccentColor", "OutlineColor", "FontColor",
+            "ThemeManager_ThemeList", 'ThemeManager_CustomThemeList', 'ThemeManager_CustomThemeName',
             "VideoLink",
         })
     end
 
-    --// Folders \\--
     function SaveManager:CheckSubFolder(createFolder)
         if typeof(self.SubFolder) ~= "string" or self.SubFolder == "" then return false end
 
@@ -9793,7 +9599,6 @@ local SaveManager = {} do
         self:BuildFolderTree()
     end
 
-    --// Save, Load, Delete, Refresh \\--
     function SaveManager:Save(name)
         if (not name) then
             return false, 'no config file is selected'
@@ -9863,7 +9668,7 @@ local SaveManager = {} do
             if not self.Parser[option.type] then continue end
             if self.Ignore[option.idx] then continue end
 
-            task.spawn(self.Parser[option.type].Load, option.idx, option) -- task.spawn() so the config loading wont get stuck.
+            task.spawn(self.Parser[option.type].Load, option.idx, option)
         end
 
         return true
@@ -9904,7 +9709,6 @@ local SaveManager = {} do
             for i = 1, #list do
                 local file = list[i]
                 if file:sub(-5) == '.json' then
-                    -- i hate this but it has to be done ...
 
                     local pos = file:find('.json', 1, true)
                     local start = pos
@@ -9937,7 +9741,6 @@ local SaveManager = {} do
         return data
     end
 
-    --// Auto Load \\--
     function SaveManager:GetAutoloadConfig()
         SaveManager:CheckFolderTree()
 
@@ -10012,7 +9815,6 @@ local SaveManager = {} do
         return true, ""
     end
 
-    --// GUI \\--
     function SaveManager:BuildConfigSection(tab)
         assert(self.Library, 'SaveManager:BuildConfigSection -> Must set SaveManager.Library')
 
@@ -10109,7 +9911,6 @@ local SaveManager = {} do
 
         self.AutoloadConfigLabel = section:AddLabel("Current autoload config: " .. self:GetAutoloadConfig(), true)
 
-        -- self:LoadAutoloadConfig()
         self:SetIgnoreIndexes({ 'SaveManager_ConfigList', 'SaveManager_ConfigName' })
     end
 
@@ -10130,21 +9931,17 @@ Library.NotifySide = "Left"
 local Window = Library:CreateWindow({
         Title = '<font color="#e11e1e">Z</font>ythera-<font color="#e11e1e">X</font>',
         Center = true,
-        AutoShow = false,  -- Disabled — we show a custom loading screen first
+        AutoShow = false,
         Resizable = true,
         ShowCustomCursor = true,
         UnlockMouseWhileOpen = true,
         NotifySide = "Left",
         TabPadding = 8,
         MenuFadeTime = 0.2,
-        --// Smaller window size (was 750x700 — too big)
+
         Size = UDim2.fromOffset(560, 540),
 })
 
---// LOADING SCREEN — Clean dark design with ZX logo (use at your own risk)
--- The script actually loads WHILE this screen is visible (task.spawn runs in parallel).
--- Heavy initializations (UI library, ESP system, hooks) happen during the ~3s loading period.
--- Wrapped in a `do ... end` block to release locals after the screen is built (Lua has a 200 local limit).
 do
 local LoadingScreenGui = Instance.new("ScreenGui")
 LoadingScreenGui.Name = "ZytheraXLoadingScreen"
@@ -10153,7 +9950,6 @@ LoadingScreenGui.ResetOnSpawn = false
 LoadingScreenGui.DisplayOrder = 9999
 LoadingScreenGui.Parent = gethui and gethui() or game:GetService("CoreGui")
 
---// Background — deep matte black with subtle vignette
 local LoadingBg = Instance.new("Frame")
 LoadingBg.Name = "Background"
 LoadingBg.Size = UDim2.new(1, 0, 1, 0)
@@ -10161,7 +9957,6 @@ LoadingBg.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 LoadingBg.BorderSizePixel = 0
 LoadingBg.Parent = LoadingScreenGui
 
--- Subtle radial vignette (darker at edges, slightly lighter center)
 local BgGradient = Instance.new("UIGradient")
 BgGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 14, 16)),
@@ -10171,7 +9966,6 @@ BgGradient.Color = ColorSequence.new({
 BgGradient.Rotation = 0
 BgGradient.Parent = LoadingBg
 
---// Main container — sleek dark card with refined red accent
 local LoadingContainer = Instance.new("Frame")
 LoadingContainer.Name = "Container"
 LoadingContainer.Size = UDim2.new(0, 420, 0, 300)
@@ -10184,14 +9978,12 @@ local LoadingCorner = Instance.new("UICorner")
 LoadingCorner.CornerRadius = UDim.new(0, 10)
 LoadingCorner.Parent = LoadingContainer
 
--- Thin refined border (not a glow — just a clean edge)
 local LoadingBorder = Instance.new("UIStroke")
 LoadingBorder.Color = Color3.fromRGB(35, 28, 30)
 LoadingBorder.Thickness = 1
 LoadingBorder.Transparency = 0
 LoadingBorder.Parent = LoadingContainer
 
---// ZX LOGO — clean monospace-style mark above the title
 local ZxLogo = Instance.new("TextLabel")
 ZxLogo.Name = "ZXLogo"
 ZxLogo.Size = UDim2.new(1, 0, 0, 70)
@@ -10204,7 +9996,6 @@ ZxLogo.Text = '<font color="#e11e1e">Z</font><font color="#ffffff">X</font>'
 ZxLogo.RichText = true
 ZxLogo.Parent = LoadingContainer
 
--- Thin accent line under the logo (acts as a divider)
 local LogoLine = Instance.new("Frame")
 LogoLine.Name = "LogoLine"
 LogoLine.Size = UDim2.new(0, 40, 0, 2)
@@ -10217,7 +10008,6 @@ local LogoLineCorner = Instance.new("UICorner")
 LogoLineCorner.CornerRadius = UDim.new(1, 0)
 LogoLineCorner.Parent = LogoLine
 
---// Title (script name — small, refined)
 local LoadingTitle = Instance.new("TextLabel")
 LoadingTitle.Name = "Title"
 LoadingTitle.Size = UDim2.new(1, 0, 0, 22)
@@ -10229,7 +10019,6 @@ LoadingTitle.TextColor3 = Color3.fromRGB(230, 230, 235)
 LoadingTitle.Text = "ZYTHERA - X"
 LoadingTitle.Parent = LoadingContainer
 
---// Subtitle (status text — small, muted)
 local LoadingSubtitle = Instance.new("TextLabel")
 LoadingSubtitle.Name = "Subtitle"
 LoadingSubtitle.Size = UDim2.new(1, 0, 0, 18)
@@ -10241,7 +10030,6 @@ LoadingSubtitle.TextColor3 = Color3.fromRGB(120, 120, 130)
 LoadingSubtitle.Text = "Initializing..."
 LoadingSubtitle.Parent = LoadingContainer
 
---// Progress bar — minimal, clean
 local ProgressBg = Instance.new("Frame")
 ProgressBg.Name = "ProgressBg"
 ProgressBg.Size = UDim2.new(0, 340, 0, 4)
@@ -10254,7 +10042,6 @@ local ProgressCorner = Instance.new("UICorner")
 ProgressCorner.CornerRadius = UDim.new(1, 0)
 ProgressCorner.Parent = ProgressBg
 
--- Progress bar fill — solid red, no flashy gradient
 local ProgressFill = Instance.new("Frame")
 ProgressFill.Name = "ProgressFill"
 ProgressFill.Size = UDim2.new(0, 0, 1, 0)
@@ -10267,7 +10054,6 @@ local FillCorner = Instance.new("UICorner")
 FillCorner.CornerRadius = UDim.new(1, 0)
 FillCorner.Parent = ProgressFill
 
---// Percentage + status row (clean, side-by-side look)
 local ProgressText = Instance.new("TextLabel")
 ProgressText.Name = "ProgressText"
 ProgressText.Size = UDim2.new(1, 0, 0, 20)
@@ -10279,7 +10065,6 @@ ProgressText.TextColor3 = Color3.fromRGB(180, 180, 190)
 ProgressText.Text = "0%"
 ProgressText.Parent = LoadingContainer
 
---// Bottom disclaimer — "Use at your own risk" warning
 local HintText = Instance.new("TextLabel")
 HintText.Name = "Hint"
 HintText.Size = UDim2.new(1, 0, 0, 16)
@@ -10291,21 +10076,17 @@ HintText.TextColor3 = Color3.fromRGB(90, 90, 100)
 HintText.Text = "use at your own risk"
 HintText.Parent = LoadingContainer
 
---// ANIMATIONS — minimal, professional
--- Only 3 subtle effects: logo pulse, accent line breathe, progress gradient shift (subtle)
 local animTime = 0
 
 task.spawn(function()
     while LoadingScreenGui and LoadingScreenGui.Parent do
         animTime = animTime + 0.04
 
-        -- Subtle logo opacity pulse (very gentle)
         pcall(function()
-            local pulse = (math.sin(animTime * 1.2) + 1) / 2  -- 0 to 1
+            local pulse = (math.sin(animTime * 1.2) + 1) / 2
             ZxLogo.TextTransparency = 0.05 + (pulse * 0.1)
         end)
 
-        -- Accent line width breathe (subtle)
         pcall(function()
             local breath = (math.sin(animTime * 1.5) + 1) / 2
             LogoLine.Size = UDim2.new(0, 40 + breath * 8, 0, 2)
@@ -10316,8 +10097,6 @@ task.spawn(function()
     end
 end)
 
---// LOADING ANIMATION — progress from 0% to 100% over ~3 seconds
--- During this time, the rest of the script continues to load (UI library, hooks, ESP, etc.)
 local loadingStartTime = tick()
 local loadingDuration = 3.0
 local loadingSteps = {
@@ -10335,14 +10114,11 @@ task.spawn(function()
         local elapsed = tick() - loadingStartTime
         local progress = math.clamp(elapsed / loadingDuration, 0, 1)
 
-        -- Smooth ease-out progress (starts fast, settles near 100%)
         local easedProgress = 1 - ((1 - progress) ^ 2.5)
 
-        -- Update progress bar fill
         ProgressFill.Size = UDim2.new(easedProgress, 0, 1, 0)
         ProgressText.Text = tostring(math.floor(easedProgress * 100)) .. "%"
 
-        -- Update subtitle text based on time
         if stepIdx <= #loadingSteps and elapsed >= loadingSteps[stepIdx].time then
             LoadingSubtitle.Text = loadingSteps[stepIdx].text
             stepIdx = stepIdx + 1
@@ -10354,13 +10130,11 @@ task.spawn(function()
         task.wait(0.04)
     end
 
-    -- Final state
     ProgressFill.Size = UDim2.new(1, 0, 1, 0)
     ProgressText.Text = "100%"
     LoadingSubtitle.Text = "ready"
     task.wait(0.35)
 
-    -- Clean fade out (everything fades together)
     local fadeStart = tick()
     while tick() - fadeStart < 0.5 do
         local alpha = (tick() - fadeStart) / 0.5
@@ -10378,17 +10152,14 @@ task.spawn(function()
         task.wait()
     end
 
-    -- Destroy loading screen
     LoadingScreenGui:Destroy()
 
-    -- Now show the main UI
     pcall(function()
         Library:Toggle(true)
     end)
 end)
-end  -- end of loading screen `do` block (releases ~20 locals)
+end
 
---// TAB LAYOUT SYSTEM
 local Tabs = {
         Combat = Window:AddTab("Combat"),
         ESP = Window:AddTab("ESP"),
@@ -10398,15 +10169,14 @@ local Tabs = {
         ["UI Settings"] = Window:AddTab("UI Settings"),
 }
 
--- GROUPBOX INTERFACES
 local RageModeGroup = Tabs.Combat:AddRightGroupbox("Rage Mode")
 local SilentAimGroup = Tabs.Combat:AddLeftGroupbox("Silent Aim")
 local GunModsAimGroup = Tabs.Combat:AddLeftGroupbox("Gun Mods")
-local GunModsAmmoGroup = GunModsAimGroup  -- [V8] merged into one box
-local GunModsMiscGroup = GunModsAimGroup  -- [V8] merged into one box
+local GunModsAmmoGroup = GunModsAimGroup
+local GunModsMiscGroup = GunModsAimGroup
 local HoldBotGroup = Tabs.Combat:AddRightGroupbox("Aimbot")
 local TeamCheckGroup = Tabs.Combat:AddLeftGroupbox("Team Check")
-local HoldBotTargetGroup = HoldBotGroup  -- [V8] merged into Aimbot box
+local HoldBotTargetGroup = HoldBotGroup
 local TriggerBotGroup = Tabs.Combat:AddRightGroupbox("Trigger Bot")
 local AntiAimGroup = Tabs.Combat:AddRightGroupbox("Anti-Aim")
 local OrbitGroup = Tabs.Combat:AddRightGroupbox("Orbit")
@@ -10425,20 +10195,17 @@ local SkinChangerGroup = Tabs.Misc:AddLeftGroupbox("Skin Changer")
 local MiscGroup = Tabs.Misc:AddLeftGroupbox("Device Spoofer Options")
 local TeamDebugGroup = Tabs.Misc:AddRightGroupbox("Team Debug")
 
---// TEAM CHECK SETTINGS (Prevents targeting teammates — TeamID only)
 local TeamCheck = {
-    Enabled = true,            -- ON by default — don't shoot teammates!
-    DebugMode = false,         -- When ON, prints team check results to console
+    Enabled = true,
+    DebugMode = false,
 }
 
-
---// SILENT AIM SETTINGS (Bullet Redirection via Raycast Hook)
 local SilentAim = {
     Enabled = false,
-    Prediction = 0.12,       -- [V2] Better default prediction (was 0)
+    Prediction = 0.12,
     WallCheck = false,
-    HitPart = "Head",        -- Default target part (replaces HeadshotRate)
-    HitCooldown = 0.01,      -- [V6] 10ms default — first bullet hits, then 10ms cooldown
+    HitPart = "Head",
+    HitCooldown = 0.01,
     FOV = 150,
     FovVisible = false,
     FovFilled = false,
@@ -10446,12 +10213,9 @@ local SilentAim = {
     FovRainbow = false,
     MaxDistance = 500,
     ProjectilePrediction = false,
-    _lastHitTime = 0,         -- [V5] Internal: tracks when the last silent aim hit occurred
+    _lastHitTime = 0,
 }
 
--- [V5] New hit system: first bullet hits, then cooldown before next hit
--- If enough time has passed since the last hit, this bullet hits.
--- Otherwise, the bullet goes to the normal crosshair position (no redirect).
 local function silentAimShouldHit()
     local now = tick()
     if (now - SilentAim._lastHitTime) >= SilentAim.HitCooldown then
@@ -10461,18 +10225,14 @@ local function silentAimShouldHit()
     return false
 end
 
---// AIMBOT SETTINGS REMOVED — Replaced by HoldBot with keybind
-
---// TRIGGER BOT SETTINGS (Auto-fire when crosshair is on enemy)
 local TriggerBot = {
     Enabled = false,
-    Delay = 0.05,           -- Seconds to wait before firing after detecting target (0.05-0.3)
-    WallCheck = true,        -- Only fire if target is visible (not behind walls)
-    Keybind = false,         -- When true, only fires while holding the key
-    LastDetected = 0,        -- Internal: tracks when target was first detected
+    Delay = 0.05,
+    WallCheck = true,
+    Keybind = false,
+    LastDetected = 0,
 }
 
---// ESP SETTINGS
 local EspSettings = {
     EspBoxes = false,
     EspFilledBoxes = false,
@@ -10481,9 +10241,9 @@ local EspSettings = {
     EspNames = false,
     EspDistance = false,
     EspChams = false,
-    EspSkeleton = false,       -- Skeleton ESP (bone lines)
-    EspGlowChams = false,      -- Glow Chams (enhanced highlight with always-on-top + glow fill)
-    EspEnemyWeapons = false,   -- Show enemy weapon names on ESP
+    EspSkeleton = false,
+    EspGlowChams = false,
+    EspEnemyWeapons = false,
     EspColorMode = "Blue",
     EspFilledColorMode = "Blue",
     EspChamsColorMode = "Cyan",
@@ -10495,25 +10255,23 @@ local EspSettings = {
     ChamsBrightness = 5.0,
     GlowBrightness = 3.0,
     FilledBoxTransparency = 0.4,
-    HeadScale = 1.0,           -- Client-side head hitbox enlargement (1=normal, 2=double, etc.)
-    TeamCheckESP = false,      -- When ON, hide teammates from ESP entirely (enemies only)
+    HeadScale = 1.0,
+    TeamCheckESP = false,
 }
 
---// VISUAL SETTINGS
 local VisualSettings = {
     CrosshairEnabled = false,
     CrosshairColorMode = "Purple",
     HideSmoke = false,
     HideFlashbang = false,
-    LockIndicator = false,      -- Show "LOCKED: NAME" / "SCANNING..." indicator on screen
-    -- [V7] Sky / Lighting controls — full custom
-    SkyColorEnabled = false,    -- Master toggle for sky color override
-    AmbientColor = Color3.fromRGB(80, 80, 100),    -- Ambient light color (set via color picker)
-    SkyBrightness = 1.5,        -- Lighting.Brightness value (0-3)
-    SkyClockTime = 12,          -- Lighting.ClockTime value (0-24)
+    LockIndicator = false,
+
+    SkyColorEnabled = false,
+    AmbientColor = Color3.fromRGB(80, 80, 100),
+    SkyBrightness = 1.5,
+    SkyClockTime = 12,
 }
 
---// MISC SETTINGS
 local MiscSettings = {
     SpoofEnabled = false,
     SelectedDevice = "Controller",
@@ -10523,88 +10281,79 @@ local MiscSettings = {
     CustomEnderName = "Dallas",
 }
 
---// GUN MODS SETTINGS (Weapon property overrides via hookfunction)
 local GunMods = {
-    MasterEnabled = false,       -- Master toggle for all gun mods
-    NoRecoil = false,            -- Zero camera kick/recoil
-    NoSpread = false,            -- Perfect accuracy (no bullet deviation)
-    RapidFire = false,           -- Remove fire rate delay
-    FireRateMultiplier = 1.0,    -- ItemLibrary-specific: 1.0=normal, 0.1=10x fire rate
-    ZeroSpreadIL = false,        -- Zero spread via ItemLibrary (ShootSpread + ShootAccuracy)
-    ZeroRecoilIL = false,        -- Zero recoil via ItemLibrary (ShootRecoil)
-    OneShot = false,             -- Maximize damage to one-shot enemies
-    InfiniteAmmo = false,        -- Never run out of ammo
-    InstantReload = false,       -- Reload time = 0
-    InstantEquip = false,        -- Equip time = 0
-    NoBulletDrop = false,        -- Bullets travel in straight line (no gravity)
-    MaxPierce = false,           -- Bullets hit infinite targets
-    NoCooldowns = false,         -- Remove melee/ability cooldowns
+    MasterEnabled = false,
+    NoRecoil = false,
+    NoSpread = false,
+    RapidFire = false,
+    FireRateMultiplier = 1.0,
+    ZeroSpreadIL = false,
+    ZeroRecoilIL = false,
+    OneShot = false,
+    InfiniteAmmo = false,
+    InstantReload = false,
+    InstantEquip = false,
+    NoBulletDrop = false,
+    MaxPierce = false,
+    NoCooldowns = false,
 }
 
---// SNAP AIMBOT REMOVED
-
---// RAGE MODE SETTINGS (Auto-snap + rapid-fire)
 local RageMode = {
     Enabled = false,
-    AimStyle = "Visible",      -- "Visible" = mousemoverel (physically snaps crosshair, STRONGER) | "Silent" = raycast hook only (camera stays still)
-    AimSpeed = 0.18,           -- mousemoverel multiplier (0.01=slow, 0.18=fast rage, 1.0=instant snap)
-    Wallbang = false,          -- Desync + Gun.StartShooting + EncodeCFrame
-    WallCheck = false,         -- Only target visible enemies (not behind walls)
-    AutoWinEnabled = false,    -- Auto Win 1v1 — enables Silent Aim + ItemLibrary mods + Auto Shoot
-    UseKeybind = true,         -- When true, Rage Mode only activates while holding the key
-    -- [V2] UseFOV technique: when true, RageMode respects the FOV circle
-    -- instead of targeting the entire screen. Useful for legit-looking rage.
-    UseFOV = false,            -- OFF by default = classic rage (full screen)
-    FOV = 250,                 -- [V2] Default FOV radius (was math.huge)
-    MaxDistance = math.huge,   -- No distance limit — target at any range on the map
-    HeadshotRate = 100,        -- Always aim at head — rage mode
-    HitPart = "Head",          -- Always head
-    ClickSpeed = 0.015,        -- Ultra fast auto-fire
-    FovVisible = false,        -- No FOV circle needed
+    AimStyle = "Visible",
+    AimSpeed = 0.18,
+    Wallbang = false,
+    WallCheck = false,
+    AutoWinEnabled = false,
+    UseKeybind = true,
+    UseFOV = false,
+    FOV = 250,
+    MaxDistance = math.huge,
+    HeadshotRate = 100,
+    HitPart = "Head",
+    ShowTracer = true,
+    TracerStart = "Cursor",
+    TracerColor = Color3.fromRGB(255, 50, 50),
+    TracerThickness = 1,
+    ShowAmmoLine = false,
+    HideWhileReloading = false,
+    ShowStatusDisplay = true,
+    ClickSpeed = 0.015,
+    FovVisible = false,
     FovFilled = false,
-    FovColor = Color3.fromRGB(255, 0, 0),  -- [V8] FOV circle color (default red)
-    FovRainbow = false,        -- [V8] Rainbow mode toggle
-    AutoShot = true,           -- Always auto-shoot
+    FovColor = Color3.fromRGB(255, 0, 0),
+    FovRainbow = false,
+    AutoShot = true,
 }
 
---// HOLDBOT SETTINGS (Aimbot replacement — smooth aimbot with keybind + advanced features)
 local HoldBot = {
     Enabled = false,
-    UseKeybind = true,          -- When true, HoldBot only activates while holding the key
+    UseKeybind = true,
     UseSmoothing = false,
-    SmoothingValue = 5,        -- 1=very fast, 100=very slow
+    SmoothingValue = 5,
     Prediction = false,
-    PersistentTarget = false,  -- Won't switch targets until key released
+    PersistentTarget = false,
     TargetBehindWalls = false,
     UseTargetZone = false,
-    TargetZoneDistance = 1500,  -- Max distance in studs for targeting
+    TargetZoneDistance = 1500,
     FOV = 250,
     FovVisible = false,
     FovFilled = false,
-    FovColorMode = "Cyan",     -- [V6] FOV circle color (kept for backward compat)
-    FovColor = Color3.fromRGB(0, 255, 255),  -- [V7] Actual Color3 for FOV circle (default Cyan)
-    FovRainbow = false,        -- [V7] Rainbow mode toggle
+    FovColorMode = "Cyan",
+    FovColor = Color3.fromRGB(0, 255, 255),
+    FovRainbow = false,
     MaxDistance = 500,
     HitPart = "Head",
-    -- [V2] Reaction time: delay before aimbot reacts to a new target
-    ReactionTime = 0.05,       -- 0.05s = 50ms (fast but not instant-snap)
-    _lastTargetSwitch = 0,     -- Internal: tracks when we last switched targets
+
+    ReactionTime = 0.05,
+    _lastTargetSwitch = 0,
 }
 
---// ANTI-AIM v4 — Simple, working approach (inspired by Kuzq Rivals script)
--- The complex hook-based version was over-engineered and silently failed.
--- This version uses the SIMPLEST technique that actually works on Rivals:
---   - Multiply HRP.CFrame by a small rotation each frame (accumulates)
---   - Disable AutoRotate so the game doesn't fight back
---   - Run on Heartbeat (AFTER physics, so rotation sticks)
---
--- This is the same approach used by Kuzq, Onetap, and most working Rivals
--- cheats. It's not fancy, but it works where complex hooks fail.
 local AntiAim = {
     Enabled = false,
-    Speed = 20,            -- degrees per frame (20 = moderate, 45 = fast spin)
-    Mode = "Spin",         -- Spin | Jitter | Reverse
-    JitterRange = 90,      -- max random angle for Jitter mode
+    Speed = 20,
+    Mode = "Spin",
+    JitterRange = 90,
 }
 
 local antiAimYaw = 0
@@ -10613,7 +10362,7 @@ local antiAimJitterTimer = 0
 local antiAimWasEnabled = false
 
 local function antiAimStep()
-    -- Handle enable/disable transitions (restore AutoRotate when turned off)
+
     if not AntiAim.Enabled then
         if antiAimWasEnabled then
             antiAimWasEnabled = false
@@ -10635,29 +10384,26 @@ local function antiAimStep()
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not root or not hum then return end
 
-    -- Disable AutoRotate so the game doesn't override our rotation
     if hum.AutoRotate then
         hum.AutoRotate = false
     end
 
-    -- Apply rotation based on mode
     if AntiAim.Mode == "Spin" then
-        -- Continuous rotation: multiply current CFrame by small rotation each frame
-        -- This is the Kuzq technique — simplest and most reliable
+
         root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(AntiAim.Speed), 0)
 
     elseif AntiAim.Mode == "Jitter" then
-        -- Random angle jumps every 8 frames
+
         antiAimJitterTimer = antiAimJitterTimer + 1
         if antiAimJitterTimer >= 8 then
             antiAimJitterTimer = 0
             antiAimJitterTarget = math.random(-AntiAim.JitterRange, AntiAim.JitterRange)
         end
-        -- Smoothly rotate towards the jitter target
+
         root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(antiAimJitterTarget / 8), 0)
 
     elseif AntiAim.Mode == "Reverse" then
-        -- Face backwards (180 degrees from camera)
+
         local cam = workspace.CurrentCamera
         if cam then
             local look = cam.CFrame.LookVector
@@ -10669,59 +10415,49 @@ local function antiAimStep()
     end
 end
 
---// ANTI-AIM — Connect to Heartbeat (runs AFTER physics simulation)
--- Critical: RenderStepped runs BEFORE physics, so physics would overwrite
--- our rotation. Heartbeat runs AFTER, so our rotation sticks.
 RunService.Heartbeat:Connect(function()
     pcall(antiAimStep)
 end)
 
---// PLAYER SETTINGS
 local PlayerSettings = {
     InfiniteJump = false,
-    PanicKeyEnabled = false,   -- Emergency kill-switch: instantly disables all combat features
+    PanicKeyEnabled = false,
     JumpPowerEnabled = false,
-    JumpPower = 50,            -- Default Roblox jump power is 50
-    WalkSpeedEnabled = false,  -- WalkSpeed override (continuous enforcement)
-    WalkSpeed = 50,            -- Default walkspeed override (16 = normal, 50 = noticeable speed)
-    NoclipEnabled = false,     -- Walk through walls
-    AirWalkEnabled = false,    -- Stay in the air (no gravity fall)
-    SlideBoost = false,        -- Speed boost while sliding (LeftCtrl)
-    SlideBoostPower = 4,       -- Multiplier for slide speed
-    FlyEnabled = false,        -- Fly using BodyVelocity+BodyGyro
-    FlySpeed = 80,             -- Default fly speed
-    FullbrightEnabled = false, -- Fullbright lighting
-    AntiRagdollEnabled = false, -- Anti-Ragdoll
-    AntiAfkEnabled = false,    -- Anti-AFK
-    GravityValue = 196,        -- Gravity control — default 196
-    -- [V3 from Rage Hub] Auto BunnyHop — auto-jump when holding Space
-    AutoBhop = false,         -- OFF by default
-    -- [V3 from Rage Hub] Custom Camera FOV — zoom in/out
-    CustomFOV = false,        -- OFF by default (game default ~70)
-    FOVValue = 90,            -- Custom FOV value (70-120)
-    -- [V3 from Rage Hub] Show FPS counter (Drawing-based, top-left)
-    ShowFPS = false,          -- OFF by default
-    --// ORBIT — rotate around nearest enemy (auto, with team check)
-    OrbitEnabled = false,      -- Master toggle
-    OrbitRadius = 8,           -- Studs away from target (orbit circle size)
-    OrbitSpeed = 3,            -- Rotation speed (radians per second)
-    OrbitHeight = 3,           -- Height offset above target (positive=floating, 0=ground level)
-    OrbitMaxDistance = 400,    -- Max distance to find a target (default 400 studs)
+    JumpPower = 50,
+    WalkSpeedEnabled = false,
+    WalkSpeed = 50,
+    NoclipEnabled = false,
+    AirWalkEnabled = false,
+    SlideBoost = false,
+    SlideBoostPower = 4,
+    FlyEnabled = false,
+    FlySpeed = 80,
+    FullbrightEnabled = false,
+    AntiRagdollEnabled = false,
+    AntiAfkEnabled = false,
+    GravityValue = 196,
+
+    AutoBhop = false,
+
+    CustomFOV = false,
+    FOVValue = 90,
+
+    ShowFPS = false,
+
+    OrbitEnabled = false,
+    OrbitRadius = 8,
+    OrbitSpeed = 3,
+    OrbitHeight = 3,
+    OrbitMaxDistance = 400,
 }
 
---// ORBIT STATE — internal tracking
 local orbitState = {
-    currentAngle = 0,          -- Current rotation angle (radians)
-    currentTarget = nil,       -- Current target player reference
+    currentAngle = 0,
+    currentTarget = nil,
 }
 
---// Forward declare isTeammate (defined later in the script) so Orbit can use it
 local isTeammateOrbit = nil
 
---// ORBIT ENGINE — rotates your character around the NEAREST ENEMY
--- Auto-targets: skips teammates (uses TeamCheck), skips dead players, picks nearest
--- No UI selection needed — fully automatic
--- NOTE: Uses `player` (defined at top of script) instead of `lp` for safety.
 local function findNearestEnemy()
     local char = player.Character
     if not char then return nil end
@@ -10730,17 +10466,17 @@ local function findNearestEnemy()
 
     local nearestDist = math.huge
     local nearestPlr = nil
-    -- Max distance check: only target enemies within OrbitMaxDistance
+
     local maxDist = PlayerSettings.OrbitMaxDistance or 400
     for _, plr in pairs(players:GetPlayers()) do
         if plr ~= player and plr.Character then
-            -- Team check: skip teammates
+
             if isTeammateOrbit and isTeammateOrbit(plr) then continue end
             local tRoot = plr.Character:FindFirstChild("HumanoidRootPart")
             local tHum = plr.Character:FindFirstChildOfClass("Humanoid")
             if tRoot and tHum and tHum.Health > 0 then
                 local dist = (tRoot.Position - root.Position).Magnitude
-                -- Skip targets beyond max distance
+
                 if dist <= maxDist and dist < nearestDist then
                     nearestDist = dist
                     nearestPlr = plr
@@ -10766,15 +10502,12 @@ local function orbitStep(deltaTime)
     local tHum = target.Character:FindFirstChildOfClass("Humanoid")
     if not tRoot or not tHum or tHum.Health <= 0 then return end
 
-    -- Disable AutoRotate so the game doesn't fight our rotation
     if hum and hum.AutoRotate then
         pcall(function() hum.AutoRotate = false end)
     end
 
-    -- Update angle based on speed and deltaTime (frame-independent)
     orbitState.currentAngle = orbitState.currentAngle + (PlayerSettings.OrbitSpeed * deltaTime)
 
-    -- Compute position on circle around target
     local targetPos = tRoot.Position
     local radius = PlayerSettings.OrbitRadius
     local height = PlayerSettings.OrbitHeight
@@ -10783,28 +10516,19 @@ local function orbitStep(deltaTime)
     local newPos = Vector3.new(targetPos.X + offsetX, targetPos.Y + height, targetPos.Z + offsetZ)
     local lookAt = targetPos + Vector3.new(0, height, 0)
 
-    -- TELEPORT + ROTATE: Set CFrame directly (position + facing target)
-    -- Also reset velocity so the game's physics doesn't fight us
     pcall(function()
         root.CFrame = CFrame.new(newPos, lookAt)
-        -- Kill any momentum so we don't slide away
+
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end)
 end
 
---// ORBIT — use Stepped (runs BEFORE physics) so our CFrame override sticks
--- Heartbeat runs AFTER physics, which means the game's physics step would
--- overwrite our CFrame. Stepped runs BEFORE physics, so when physics simulates,
--- it simulates FROM our position → the orbit actually works.
 local rsOrbit = cloneref(game:GetService("RunService"))
 rsOrbit.Stepped:Connect(function(_, deltaTime)
     pcall(orbitStep, deltaTime)
 end)
 
---// ORBIT — restore AutoRotate when disabled
--- NOTE: Use `player` (defined early at top of script) instead of `lp` (defined later).
--- This Heartbeat runs from script load, so `lp` may be nil on first frames.
 RunService.Heartbeat:Connect(function()
     if not PlayerSettings.OrbitEnabled then
         local char = player.Character
@@ -10817,12 +10541,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
---// TELEPORT KILL SETTINGS
 local TeleportKillSettings = {
     Enabled = false,
     TargetPlayerName = "",
-    Distance = 3,              -- Distance behind target in studs
-    AutoReconnect = true,      -- Reconnect on character respawn
+    Distance = 3,
+    AutoReconnect = true,
 }
 local tpKillConnection = nil
 local tpKillTarget = nil
@@ -10834,7 +10557,6 @@ local DeviceMapping = {
     ["VR"] = "VR"
 }
 
---// ENVIRONMENT RENDERING & OBJECT REFS
 local lp = player
 local camera = workspace.CurrentCamera
 local rs = RunService
@@ -10842,8 +10564,6 @@ local ts = TweenService
 local uis = UserInputService
 local Lighting = game:GetService("Lighting")
 
-
---// INFINITE JUMP (from Rivals script — allows unlimited jumping)
 uis.JumpRequest:Connect(function()
     if PlayerSettings.InfiniteJump then
         local char = lp.Character
@@ -10854,7 +10574,6 @@ uis.JumpRequest:Connect(function()
     end
 end)
 
---// [V3 from Rage Hub] AUTO BUNNYHOP — auto-jump when holding Space
 RunService.Stepped:Connect(function()
     if PlayerSettings.AutoBhop then
         local char = lp.Character
@@ -10867,7 +10586,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
---// [V3 from Rage Hub] FPS COUNTER (Drawing-based, top-left corner)
 local _fpsFrames = 0
 local _fpsTick = tick()
 local _currentFPS = 0
@@ -10875,7 +10593,7 @@ local _fpsLabel = nil
 pcall(function()
     _fpsLabel = Drawing.new("Text")
     _fpsLabel.Visible = false
-    _fpsLabel.Color = Color3.fromRGB(130, 60, 255)  -- purple (Rage Hub style)
+    _fpsLabel.Color = Color3.fromRGB(130, 60, 255)
     _fpsLabel.Size = 16
     _fpsLabel.Center = false
     _fpsLabel.Outline = true
@@ -10884,14 +10602,14 @@ pcall(function()
 end)
 
 RunService.RenderStepped:Connect(function()
-    -- FPS calculation
+
     _fpsFrames = _fpsFrames + 1
     if tick() - _fpsTick >= 1 then
         _currentFPS = _fpsFrames
         _fpsFrames = 0
         _fpsTick = tick()
     end
-    -- Show/hide FPS label
+
     if _fpsLabel then
         if PlayerSettings.ShowFPS then
             _fpsLabel.Visible = true
@@ -10900,7 +10618,7 @@ RunService.RenderStepped:Connect(function()
             _fpsLabel.Visible = false
         end
     end
-    -- Custom FOV
+
     if PlayerSettings.CustomFOV then
         pcall(function()
             camera.FieldOfView = PlayerSettings.FOVValue
@@ -10908,12 +10626,8 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// AIMBOT MOUSE MOVE FUNCTION
 local mouseMoveFunc = mousemoverel or (input and input.mousemoverel)
 
---// UNIVERSAL FIRE FUNCTION (mouse1press/release — better than mouse1click)
--- mouse1press/release gives more control: press holds the button, release lets go
--- Some games need hold duration or tool activation which requires press/release pattern
 local function autoFire()
     pcall(function()
         if mouse1press and mouse1release then
@@ -10926,7 +10640,6 @@ local function autoFire()
     end)
 end
 
---// FLY ENGINE (BodyVelocity+BodyGyro)
 local flyActive = false
 local flyBodyMovers = {}
 local flyConn = nil
@@ -10985,7 +10698,6 @@ local function startFly(speed)
     end)
 end
 
---// FULLBRIGHT
 local origAmbient = nil
 local origBright = nil
 
@@ -11004,11 +10716,6 @@ local function setFullbright(on)
     end
 end
 
--- ============================================================
--- [V7] SKY / LIGHTING COLOR SYSTEM — full custom control
--- Uses VisualSettings.AmbientColor (set via color picker)
--- + SkyBrightness + SkyClockTime (set via sliders)
--- ============================================================
 local origSkyAmbient = nil
 local origSkyBright = nil
 local origSkyClock = nil
@@ -11016,7 +10723,7 @@ local origSkyOutdoor = nil
 
 local function applySkyColor()
     if not VisualSettings.SkyColorEnabled then
-        -- Restore originals if we saved them
+
         if origSkyAmbient then
             Lighting.Ambient = origSkyAmbient
             Lighting.Brightness = origSkyBright
@@ -11027,7 +10734,6 @@ local function applySkyColor()
         return
     end
 
-    -- Save originals on first enable
     if not origSkyAmbient then
         origSkyAmbient = Lighting.Ambient
         origSkyBright = Lighting.Brightness
@@ -11035,14 +10741,12 @@ local function applySkyColor()
         origSkyOutdoor = Lighting.OutdoorAmbient
     end
 
-    -- Apply user's custom color + brightness + clock time
     Lighting.Ambient = VisualSettings.AmbientColor
     Lighting.OutdoorAmbient = VisualSettings.AmbientColor
     Lighting.Brightness = VisualSettings.SkyBrightness or 1.5
     Lighting.ClockTime = VisualSettings.SkyClockTime or 12
 end
 
---// ANTI-RAGDOLL
 local antiRagdollConn = nil
 
 local function setAntiRagdoll(on)
@@ -11070,7 +10774,6 @@ local function setAntiRagdoll(on)
     end
 end
 
---// ANTI-AFK
 local antiAfkConn = nil
 
 local function setupAntiAfk(on)
@@ -11086,7 +10789,6 @@ local function setupAntiAfk(on)
     end
 end
 
---// SERVERHOP
 local function serverhop()
     local HttpS = cloneref(game:GetService("HttpService"))
     local TeleportS = cloneref(game:GetService("TeleportService"))
@@ -11114,7 +10816,6 @@ local function serverhop()
     end
 end
 
---// REJOIN
 local function rejoin()
     local TeleportS = cloneref(game:GetService("TeleportService"))
     Library:Notify({ Title = "Rejoin", Description = "Rejoining server...", Time = 3 })
@@ -11126,7 +10827,6 @@ local function rejoin()
     end
 end
 
---// LOCK INDICATOR (Screen label showing target lock status)
 local lockLabelGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 lockLabelGui.Name = "ZytheraLockIndicator"
 lockLabelGui.ResetOnSpawn = false
@@ -11142,10 +10842,6 @@ lockLabel.TextXAlignment = Enum.TextXAlignment.Right
 lockLabel.Text = "SCANNING..."
 lockLabel.Visible = false
 
---// SILENT AIM STATE
--- (Alternating bullet counter removed — now EVERY bullet redirects to the target, 100% silent)
-
---// SILENT AIM FOV CIRCLE
 local SAFovBg = Drawing.new("Circle")
 SAFovBg.Thickness = 0
 SAFovBg.Color = Color3.fromRGB(25, 25, 30)
@@ -11158,9 +10854,6 @@ SAFovRing.Color = Color3.fromRGB(255, 30, 30)
 SAFovRing.Transparency = 0.8
 SAFovRing.Filled = false
 
---// TRIGGER BOT FOV CIRCLE REMOVED
-
---// RAGE MODE FOV CIRCLE
 local RageFovBg = Drawing.new("Circle")
 RageFovBg.Thickness = 0
 RageFovBg.Color = Color3.fromRGB(25, 25, 30)
@@ -11169,11 +10862,10 @@ RageFovBg.Filled = true
 
 local RageFovRing = Drawing.new("Circle")
 RageFovRing.Thickness = 1.5
-RageFovRing.Color = Color3.fromRGB(255, 0, 0) -- Red for Rage Mode
+RageFovRing.Color = Color3.fromRGB(255, 0, 0)
 RageFovRing.Transparency = 0.8
 RageFovRing.Filled = false
 
---// HOLDBOT FOV CIRCLE
 local HoldBotFovBg = Drawing.new("Circle")
 HoldBotFovBg.Thickness = 0
 HoldBotFovBg.Color = Color3.fromRGB(25, 25, 30)
@@ -11182,18 +10874,16 @@ HoldBotFovBg.Filled = true
 
 local HoldBotFovRing = Drawing.new("Circle")
 HoldBotFovRing.Thickness = 1.5
-HoldBotFovRing.Color = Color3.fromRGB(0, 200, 255) -- Light blue for HoldBot
+HoldBotFovRing.Color = Color3.fromRGB(0, 200, 255)
 HoldBotFovRing.Transparency = 0.8
 HoldBotFovRing.Filled = false
 
 rs.RenderStepped:Connect(function()
     local mousePos = uis:GetMouseLocation()
-    local center = mousePos -- FOV circles now follow the mouse cursor
+    local center = mousePos
 
-    -- [V8] Rainbow color helper (shared)
     local rainbowColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
 
-    -- Silent Aim FOV — [V8] apply custom color
     local saColor = SilentAim.FovColor or Color3.fromRGB(255, 255, 255)
     if SilentAim.FovRainbow then saColor = rainbowColor end
     SAFovBg.Radius = SilentAim.FOV
@@ -11205,10 +10895,6 @@ rs.RenderStepped:Connect(function()
     SAFovRing.Color = saColor
     SAFovRing.Visible = SilentAim.Enabled and SilentAim.FovVisible
 
-    -- Trigger Bot FOV
-    --// TRIGGER BOT FOV UPDATE REMOVED
-
-    -- Rage Mode FOV — [V8] apply custom color
     local rageColor = RageMode.FovColor or Color3.fromRGB(255, 0, 0)
     if RageMode.FovRainbow then rageColor = rainbowColor end
     RageFovBg.Radius = RageMode.FOV
@@ -11220,7 +10906,6 @@ rs.RenderStepped:Connect(function()
     RageFovRing.Color = rageColor
     RageFovRing.Visible = RageMode.Enabled and RageMode.UseFOV and RageMode.FovVisible
 
-    -- HoldBot FOV — [V8] apply custom color (use FovColor directly)
     local hbColor = HoldBot.FovColor or Color3.fromRGB(0, 200, 255)
     if HoldBot.FovRainbow then
         hbColor = rainbowColor
@@ -11233,8 +10918,7 @@ rs.RenderStepped:Connect(function()
     HoldBotFovRing.Position = center
     HoldBotFovRing.Color = hbColor
     HoldBotFovRing.Visible = HoldBot.Enabled and HoldBot.FovVisible
-    
-    --// LOCK INDICATOR UPDATE
+
     if VisualSettings.LockIndicator then
         lockLabel.Visible = true
         local lockedTarget = nil
@@ -11260,37 +10944,30 @@ rs.RenderStepped:Connect(function()
     end
 end)
 
-
---// TEAM CACHE (updated on team change events — avoids re-reading attributes every frame)
 local teamCache = {
-    myTeamID = nil,           -- Cached TeamID attribute value
-    lastUpdate = 0,           -- Tick of last full refresh
+    myTeamID = nil,
+    lastUpdate = 0,
 }
 
---// UPDATE TEAM CACHE (called on team change events & periodically)
 local function UpdateTeamCache()
     teamCache.myTeamID = lp:GetAttribute("TeamID")
     teamCache.lastUpdate = tick()
 end
 
---// INITIAL CACHE POPULATION
 UpdateTeamCache()
 
---// LISTEN FOR TEAM CHANGES (fires when TeamID attribute changes)
 pcall(function()
     lp:GetAttributeChangedSignal("TeamID"):Connect(function()
         UpdateTeamCache()
     end)
 end)
 
---// TEAMMATE DETECTION FUNCTION (TeamID only — works for Rivals and similar games)
 local function isTeammate(player)
     if not TeamCheck.Enabled then return false end
 
     local myTeamID = teamCache.myTeamID
     local theirTeamID = player:GetAttribute("TeamID")
-    -- TeamID = 0 or nil means "unassigned/no team" — NOT a teammate
-    -- Only count as teammate if BOTH have a valid (non-zero, non-nil) TeamID that matches
+
     if myTeamID ~= nil and theirTeamID ~= nil and myTeamID ~= 0 and theirTeamID ~= 0 and myTeamID == theirTeamID then
         if TeamCheck.DebugMode then
             print("[TeamCheck] " .. player.Name .. " is TEAMMATE (TeamID: " .. tostring(myTeamID) .. ")")
@@ -11298,64 +10975,109 @@ local function isTeammate(player)
         return true
     end
 
+    local myTeam = lp.Team
+    local theirTeam = player.Team
+    if myTeam and theirTeam and myTeam == theirTeam then
+        if TeamCheck.DebugMode then
+            print("[TeamCheck] " .. player.Name .. " is TEAMMATE (Player.Team match)")
+        end
+        return true
+    end
+
+    local myAttrTeam = lp:GetAttribute("Team")
+    local theirAttrTeam = player:GetAttribute("Team")
+    if myAttrTeam and theirAttrTeam and myAttrTeam == theirAttrTeam then
+        if TeamCheck.DebugMode then
+            print("[TeamCheck] " .. player.Name .. " is TEAMMATE (Team attribute match)")
+        end
+        return true
+    end
+
     return false
 end
 
---// Link the forward-declared reference so Orbit can use it
 isTeammateOrbit = isTeammate
 
---// TARGETING LOGIC (Shared by Silent Aim, HoldBot & Trigger Bot)
--- FOV center = mouse position (circles follow cursor)
 local function get_best_target(config)
     local target = nil
     local bestDist = config.FOV
-    local center = uis:GetMouseLocation() -- Target detection centered on mouse cursor
+    local center = uis:GetMouseLocation()
     local maxDistance = config.MaxDistance or math.huge
-    
-    --// FIX: Use HitPart directly from config (no more HeadshotRate random chance).
-    -- HeadshotRate was removed — user now picks the target part explicitly.
+
     local currentPart = config.HitPart or "Head"
-    
+
+    local HEAD_PART_CHAIN = {
+        "HitboxHead",
+        "PhysicalHitboxHead",
+        "Head",
+        "HumanoidRootPart",
+    }
+
+    local function resolveHitPart(char, userPick)
+        if not char then return nil end
+        if userPick ~= "Head" then
+
+            return char:FindFirstChild(userPick)
+        end
+
+        for _, partName in ipairs(HEAD_PART_CHAIN) do
+            local part = char:FindFirstChild(partName)
+            if part and part:IsA("BasePart") then
+                return part
+            end
+        end
+        return nil
+    end
+
     for _, v in pairs(players:GetPlayers()) do
-        if v ~= lp and v.Character and v.Character:FindFirstChild(currentPart) then
-            -- Team Check: skip teammates
+        if v ~= lp and v.Character then
+
             if isTeammate(v) then continue end
-            -- Skip dead players (Health <= 0)
+
             local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
             if not humanoid or humanoid.Health <= 0 then
                 continue
             end
-            local hitPart = v.Character[currentPart]
+
+            local hitPart = resolveHitPart(v.Character, currentPart)
+            if not hitPart then
+                continue
+            end
             local pos, onScreen = camera:WorldToViewportPoint(hitPart.Position)
             if onScreen then
                 local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
                 if mag < config.FOV then
-                    -- MaxDistance check: skip targets too far away in 3D
+
                     local dist3D = (camera.CFrame.Position - hitPart.Position).Magnitude
                     if dist3D > maxDistance then
                         continue
                     end
-                    
+
                     local isVisible = true
-                    
+
                     if config.WallCheck then
+
+                        local liveLpChar = lp.Character
+                        local liveTargetChar = v.Character
                         local origin = camera.CFrame.Position
                         local targetPos = hitPart.Position
-                        local direction = (targetPos - origin)
+                        local direction = targetPos - origin
                         local rayParams = RaycastParams.new()
-                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        rayParams.FilterDescendantsInstances = {lp.Character, v.Character}
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        rayParams.FilterDescendantsInstances = {liveLpChar, liveTargetChar, camera}
                         rayParams.IgnoreWater = true
                         rayParams.RespectCanCollide = false
-                        local rayResult = workspace:Raycast(origin, direction, rayParams)
-                        if rayResult and rayResult.Instance then
-                            local hitPartName = rayResult.Instance.Name:lower()
-                            if not hitPartName:find("humanoid") and not hitPartName:find("force") then
+                        local result = workspace:Raycast(origin, direction, rayParams)
+
+                        if result and result.Instance and result.Instance:IsA("BasePart") then
+
+                            local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
+                            if hitChar ~= liveTargetChar then
                                 isVisible = false
                             end
                         end
                     end
-                    
+
                     if isVisible and mag < bestDist then
                         bestDist = mag
                         target = hitPart
@@ -11367,7 +11089,6 @@ local function get_best_target(config)
     return target
 end
 
---// COLOR PRESETS & CROSSHAIR SETUP
 local colorPresets = {
     ["Red"] = Color3.fromRGB(255, 50, 50),
     ["Blue"] = Color3.fromRGB(0, 180, 255),
@@ -11410,7 +11131,6 @@ local cRight = createCrosshairLine("RightLine", Vector2.new(0, 0.5))
 
 local SPIN_SPEED, THICKNESS, BASE_LENGTH, MIN_GAP, MAX_GAP, PULSE_SPEED, timePassed = 45, 3, 14, 4, 12, 3, 0
 
---// CORE SCREEN GUI ESP CACHE SYSTEM
 local EspGui = Instance.new("ScreenGui")
 EspGui.Name = "CoreAssetCache"
 EspGui.ResetOnSpawn = false
@@ -11420,17 +11140,14 @@ EspGui.Parent = lp:WaitForChild("PlayerGui")
 local HEALTH_BAR_WIDTH, HEALTH_BAR_OFFSET = 3, 5
 local EspRegistry = {}
 
---// SKELETON ESP CACHE (Drawing-based bone lines)
-local SkeletonCache = {} -- [player] = {lines = {Drawing}, originalSizes = {[part] = size}}
+local SkeletonCache = {}
 
---// HEAD HITBOX SCALE CACHE
-local OriginalHeadSizes = {} -- [head_part] = originalSize
+local OriginalHeadSizes = {}
 
 local function createEspElements(p)
     if p == lp or EspRegistry[p] then return end
     local elements = {}
 
-    -- Outline Box
     local BoxFrame = Instance.new("Frame", EspGui)
     BoxFrame.BackgroundTransparency = 1
     BoxFrame.Visible = false
@@ -11442,20 +11159,17 @@ local function createEspElements(p)
     elements.Box = BoxFrame
     elements.BoxStroke = Stroke
 
-    -- Modern Filled Background Box
     local FilledBox = Instance.new("Frame", EspGui)
     FilledBox.BorderSizePixel = 0
     FilledBox.Visible = false
     elements.FilledBox = FilledBox
 
-    -- Line Tracer
     local TracerLine = Instance.new("Frame", EspGui)
     TracerLine.AnchorPoint = Vector2.new(0.5, 0.5)
     TracerLine.BorderSizePixel = 0
     TracerLine.Visible = false
     elements.Tracer = TracerLine
 
-    -- Health Bars
     local HealthContainer = Instance.new("Frame", EspGui)
     HealthContainer.BackgroundColor3 = Color3.fromRGB(0,0,0)
     HealthContainer.BackgroundTransparency = 0.3
@@ -11468,7 +11182,6 @@ local function createEspElements(p)
     elements.HealthBar = HealthContainer
     elements.HealthFill = HealthFill
 
-    -- Name Tag
     local TagLabel = Instance.new("TextLabel", EspGui)
     TagLabel.BackgroundTransparency = 1
     TagLabel.AnchorPoint = Vector2.new(0.5, 1)
@@ -11481,7 +11194,6 @@ local function createEspElements(p)
     TextStroke.Thickness = 1.5
     elements.Tag = TagLabel
 
-    -- Distance Tag
     local DistLabel = Instance.new("TextLabel", EspGui)
     DistLabel.BackgroundTransparency = 1
     DistLabel.AnchorPoint = Vector2.new(0.5, 0)
@@ -11494,7 +11206,6 @@ local function createEspElements(p)
     DistStroke.Thickness = 1.5
     elements.DistTag = DistLabel
 
-    -- Weapon Tag (enemy weapon display)
     local WeaponTag = Instance.new("TextLabel", EspGui)
     WeaponTag.BackgroundTransparency = 1
     WeaponTag.AnchorPoint = Vector2.new(0.5, 0)
@@ -11514,18 +11225,18 @@ end
 
 local function removeEspElements(p)
     if EspRegistry[p] then
-        if EspRegistry[p].CurrentCham then 
-            EspRegistry[p].CurrentCham:Destroy() 
+        if EspRegistry[p].CurrentCham then
+            EspRegistry[p].CurrentCham:Destroy()
         end
-        if EspRegistry[p].CurrentGlowCham then 
-            EspRegistry[p].CurrentGlowCham:Destroy() 
+        if EspRegistry[p].CurrentGlowCham then
+            EspRegistry[p].CurrentGlowCham:Destroy()
         end
-        for _, obj in pairs(EspRegistry[p]) do 
-            if typeof(obj) == "Instance" then obj:Destroy() end 
+        for _, obj in pairs(EspRegistry[p]) do
+            if typeof(obj) == "Instance" then obj:Destroy() end
         end
         EspRegistry[p] = nil
     end
-    -- Clean up skeleton drawings
+
     if SkeletonCache[p] then
         for _, line in ipairs(SkeletonCache[p]) do
             pcall(function() line:Remove() end)
@@ -11538,22 +11249,19 @@ for _, p in ipairs(players:GetPlayers()) do createEspElements(p) end
 players.PlayerAdded:Connect(createEspElements)
 players.PlayerRemoving:Connect(removeEspElements)
 
---// MAIN RENDERING PIPELINE
 local pipelineConnection
---// HoldBot smoothing state
+
 local holdBotPrevX, holdBotPrevY = 0, 0
-local holdBotCurrentTarget = nil  -- For persistent targeting
---// TRIGGER BOT STATE REMOVED
---// Rage Mode state
+local holdBotCurrentTarget = nil
+
 local rageLastFire = 0
 
 pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
-    --// PERIODIC TEAM CACHE REFRESH (every 5 seconds, in case signals missed)
+
     if tick() - teamCache.lastUpdate > 5 then
         UpdateTeamCache()
     end
 
-    --// HOLDBOT: Aimbot replacement — smooth aimbot with keybind + advanced features
     local holdBotActive = false
     if HoldBot.Enabled then
         if HoldBot.UseKeybind then
@@ -11564,19 +11272,19 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
     end
 
     if holdBotActive then
-        -- Target selection: persistent or dynamic
+
         local target = nil
-        
+
         if HoldBot.PersistentTarget and holdBotCurrentTarget then
-            -- Use persistent target if still valid
+
             local persistChar = holdBotCurrentTarget.Parent
             if persistChar then
                 local hum = persistChar:FindFirstChildOfClass("Humanoid")
                 if hum and hum.Health > 0 then
-                    -- Re-find the same part type on the same character
+
                     local partName = holdBotCurrentTarget.Name
                     target = persistChar:FindFirstChild(partName)
-                    -- Apply target zone if enabled
+
                     if target and HoldBot.UseTargetZone then
                         local rootPart = persistChar:FindFirstChild("HumanoidRootPart")
                         if rootPart then
@@ -11586,20 +11294,21 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                             end
                         end
                     end
-                    -- Wall check for persistent target
+
                     if target and not HoldBot.TargetBehindWalls then
+                        local liveLpChar = lp.Character
                         local origin = camera.CFrame.Position
                         local targetPos = target.Position
-                        local direction = (targetPos - origin)
+                        local direction = targetPos - origin
                         local rayParams = RaycastParams.new()
-                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        rayParams.FilterDescendantsInstances = {lp.Character, persistChar}
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        rayParams.FilterDescendantsInstances = {liveLpChar, persistChar, camera}
                         rayParams.IgnoreWater = true
                         rayParams.RespectCanCollide = false
-                        local rayResult = workspace:Raycast(origin, direction, rayParams)
-                        if rayResult and rayResult.Instance then
-                            local hitPartName = rayResult.Instance.Name:lower()
-                            if not hitPartName:find("humanoid") and not hitPartName:find("force") then
+                        local result = workspace:Raycast(origin, direction, rayParams)
+                        if result and result.Instance and result.Instance:IsA("BasePart") then
+                            local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
+                            if hitChar ~= persistChar then
                                 target = nil
                             end
                         end
@@ -11607,12 +11316,12 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                 end
             end
             if not target then
-                holdBotCurrentTarget = nil  -- Invalidated
+                holdBotCurrentTarget = nil
             end
         end
-        
+
         if not target then
-            -- Find new target using standard targeting with HoldBot config
+
             local holdBotConfig = {
                 FOV = HoldBot.FOV,
                 MaxDistance = HoldBot.MaxDistance,
@@ -11620,8 +11329,7 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                 WallCheck = not HoldBot.TargetBehindWalls,
             }
             target = get_best_target(holdBotConfig)
-            
-            -- Apply target zone
+
             if target and HoldBot.UseTargetZone then
                 local rootPart = target.Parent and target.Parent:FindFirstChild("HumanoidRootPart")
                 if rootPart then
@@ -11631,77 +11339,65 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                     end
                 end
             end
-            
+
             if HoldBot.PersistentTarget and target then
                 holdBotCurrentTarget = target
             end
         end
-        
+
         if target and target.Position then
             local targetPosition = target.Position
-            
-            -- Prediction
+
             if HoldBot.Prediction and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
                 local velocity = target.Parent.HumanoidRootPart.AssemblyLinearVelocity
                 targetPosition = targetPosition + (velocity * 0.08)
             end
-            
+
             local targetPos = camera:WorldToViewportPoint(targetPosition)
             local mousePos = uis:GetMouseLocation()
-            
+
             local rawDeltaX = targetPos.X - mousePos.X
             local rawDeltaY = targetPos.Y - mousePos.Y
-            
+
             if HoldBot.UseSmoothing then
-                -- [V6] Improved smoothing: faster, more accurate, more human-like
                 local sm = math.max(HoldBot.SmoothingValue, 1)
-                -- Exponential smoothing with frame-rate independence
-                -- Lower smoothing value = faster response, higher = slower/smoother
-                local speedFactor = 35 / sm
+                local speedFactor = 20 / sm
                 local frameAlpha = 1 - math.exp(-deltaTime * speedFactor)
-                
-                -- Apply smoothing to raw delta
                 local moveX = rawDeltaX * frameAlpha
                 local moveY = rawDeltaY * frameAlpha
-                
-                -- Temporal blend for human-like micro-corrections
-                -- Lower blend = more responsive, higher = smoother
-                local blendFactor = math.clamp(0.05 + (sm * 0.007), 0.05, 0.19)
+                local blendFactor = math.clamp(0.08 + (sm * 0.009), 0.08, 0.26)
                 moveX = holdBotPrevX * blendFactor + moveX * (1 - blendFactor)
                 moveY = holdBotPrevY * blendFactor + moveY * (1 - blendFactor)
-                
-                -- Deadzone: skip tiny movements to look more human
-                if math.abs(moveX) < 0.5 then moveX = 0 end
-                if math.abs(moveY) < 0.5 then moveY = 0 end
-                
+
+                moveX = math.clamp(moveX, -50, 50)
+                moveY = math.clamp(moveY, -50, 50)
+                if math.abs(moveX) < 0.3 then moveX = 0 end
+                if math.abs(moveY) < 0.3 then moveY = 0 end
                 holdBotPrevX = moveX
                 holdBotPrevY = moveY
-                
                 if mouseMoveFunc then
                     pcall(function() mouseMoveFunc(moveX, moveY) end)
                 end
             else
-                -- Instant snap (no smoothing)
+
+                local clampedX = math.clamp(rawDeltaX, -50, 50)
+                local clampedY = math.clamp(rawDeltaY, -50, 50)
                 if mouseMoveFunc then
-                    pcall(function() mouseMoveFunc(rawDeltaX, rawDeltaY) end)
+                    pcall(function() mouseMoveFunc(clampedX, clampedY) end)
                 end
             end
         else
-            -- No target: decay previous movement
+
             holdBotPrevX = holdBotPrevX * 0.5
             holdBotPrevY = holdBotPrevY * 0.5
         end
     else
-        -- HoldBot off: reset state
+
         holdBotPrevX = 0
         holdBotPrevY = 0
         holdBotCurrentTarget = nil
     end
 
-    --// RAGE MODE: Auto-aim + auto-fire
-    -- Visible mode: physically snaps crosshair to target using mousemoverel (STRONGER)
-    -- Silent mode: only redirects raycast, camera stays still (stealthier)
-    -- Keybind: hold key to activate (when UseKeybind is on)
     local rageActive = false
     if RageMode.Enabled then
         if RageMode.UseKeybind then
@@ -11715,19 +11411,21 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         local target = get_best_target(RageMode)
         if target then
             if RageMode.AimStyle == "Visible" then
-                -- VISIBLE MODE: physically move crosshair to target using mousemoverel
+
                 local targetPos, onScreen = camera:WorldToViewportPoint(target.Position)
                 if onScreen then
                     local mousePos = uis:GetMouseLocation()
                     local delta = (Vector2.new(targetPos.X, targetPos.Y) - mousePos) * RageMode.AimSpeed
+                    delta = Vector2.new(
+                        math.clamp(delta.X, -50, 50),
+                        math.clamp(delta.Y, -50, 50)
+                    )
                     if mouseMoveFunc then
                         pcall(function() mouseMoveFunc(delta.X, delta.Y) end)
                     end
                 end
             end
-            -- Silent mode doesn't need mousemoverel — the utility.Raycast hook handles bullet redirection
 
-            -- Auto-fire at fast click speed
             local now = tick()
             if now - rageLastFire >= RageMode.ClickSpeed then
                 rageLastFire = now
@@ -11736,12 +11434,9 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    --// TRIGGER BOT: Auto-fire when crosshair is on an enemy
-    -- Raycasts from camera through mouse position — if it hits an enemy, auto-click after delay
     if TriggerBot.Enabled then
         local triggerShouldFire = false
 
-        -- Check keybind if enabled
         if TriggerBot.Keybind then
             triggerShouldFire = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         else
@@ -11749,7 +11444,7 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         end
 
         if triggerShouldFire then
-            -- Raycast from camera through mouse position
+
             local mouseLocation = uis:GetMouseLocation()
             local mouseRay = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
             local rayParams = RaycastParams.new()
@@ -11759,27 +11454,23 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
             local rayResult = workspace:Raycast(mouseRay.Origin, mouseRay.Direction * 2000, rayParams)
 
             if rayResult and rayResult.Instance then
-                -- Check if the hit part belongs to an enemy player
+
                 local hitChar = rayResult.Instance:FindFirstAncestorOfClass("Model")
                 if hitChar then
                     local hitPlayer = players:GetPlayerFromCharacter(hitChar)
                     if hitPlayer and hitPlayer ~= lp and not isTeammate(hitPlayer) then
-                        -- Check if enemy is alive
+
                         local hitHum = hitChar:FindFirstChildOfClass("Humanoid")
                         if hitHum and hitHum.Health > 0 then
-                            -- Wall check: if enabled, verify the hit is not behind a wall
-                            -- (Since we already raycasted, if rayResult hit the character, it's visible)
-                            -- The raycast naturally checks visibility — if it hit the character, it's visible
 
-                            -- Apply delay
                             local now = tick()
                             if TriggerBot.LastDetected == 0 then
-                                -- First frame detecting target — start timer
+
                                 TriggerBot.LastDetected = now
                             end
 
                             if now - TriggerBot.LastDetected >= TriggerBot.Delay then
-                                -- Delay passed — fire!
+
                                 autoFire()
                             end
                         else
@@ -11801,17 +11492,16 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         TriggerBot.LastDetected = 0
     end
 
-    --// CROSSHAIR
     if VisualSettings.CrosshairEnabled then
         crosshairAnchor.Visible = true
         local workingColor = VisualSettings.CrosshairColorMode == "Rainbow" and Color3.fromHSV(tick() % 5 / 5, 1, 1) or colorPresets[VisualSettings.CrosshairColorMode] or Color3.fromRGB(255, 50, 50)
         cTop.BackgroundColor3 = workingColor; cBottom.BackgroundColor3 = workingColor; cLeft.BackgroundColor3 = workingColor; cRight.BackgroundColor3 = workingColor
-        
+
         crosshairAnchor.Rotation = (crosshairAnchor.Rotation + (SPIN_SPEED * deltaTime)) % 360
         timePassed = timePassed + (deltaTime * PULSE_SPEED)
         local alpha = (math.sin(timePassed) + 1) / 2
         local currentGap = MIN_GAP + (alpha * (MAX_GAP - MIN_GAP))
-        
+
         cTop.Size = UDim2.new(0, THICKNESS, 0, BASE_LENGTH); cTop.Position = UDim2.new(0, 0, 0, -currentGap)
         cBottom.Size = UDim2.new(0, THICKNESS, 0, BASE_LENGTH); cBottom.Position = UDim2.new(0, 0, 0, currentGap)
         cLeft.Size = UDim2.new(0, BASE_LENGTH, 0, THICKNESS); cLeft.Position = UDim2.new(0, -currentGap, 0, 0)
@@ -11820,7 +11510,6 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         crosshairAnchor.Visible = false
     end
 
-    --// ESP RENDERING
     local globalRainbow = Color3.fromHSV(tick() % 5 / 5, 1, 1)
     local boxColor = EspSettings.EspColorMode == "Rainbow" and globalRainbow or colorPresets[EspSettings.EspColorMode] or Color3.fromRGB(0, 180, 255)
     local filledBoxColor = EspSettings.EspFilledColorMode == "Rainbow" and globalRainbow or colorPresets[EspSettings.EspFilledColorMode] or Color3.fromRGB(0, 180, 255)
@@ -11832,11 +11521,10 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
         if rootPart and humanoid and humanoid.Health > 0 then
-            -- Team Check ESP: teammates shown in cyan, enemies in normal color
-            -- If TeamCheckESP is ON, hide teammates entirely (enemies only mode)
+
             local isTeamPlayer = isTeammate(player)
             if isTeamPlayer and EspSettings.TeamCheckESP then
-                -- Hide all ESP elements for this teammate
+
                 cache.Box.Visible = false
                 cache.FilledBox.Visible = false
                 cache.Tracer.Visible = false
@@ -11920,25 +11608,24 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                 if EspSettings.EspChams then
                     if not cache.CurrentCham or cache.CurrentCham.Parent ~= character then
                         if cache.CurrentCham then cache.CurrentCham:Destroy() end
-                        
+
                         local freshHighlight = Instance.new("Highlight")
                         freshHighlight.Name = "NeonEngineStorage"
                         freshHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                         freshHighlight.Parent = character
                         cache.CurrentCham = freshHighlight
                     end
-                    
+
                     local neonMultiplier = EspSettings.ChamsBrightness
                     cache.CurrentCham.FillColor = Color3.new(teamChamColor.R * neonMultiplier, teamChamColor.G * neonMultiplier, teamChamColor.B * neonMultiplier)
                     cache.CurrentCham.OutlineColor = Color3.new(teamChamColor.R * neonMultiplier, teamChamColor.G * neonMultiplier, teamChamColor.B * neonMultiplier)
                     cache.CurrentCham.FillTransparency = 0.2
                     cache.CurrentCham.OutlineTransparency = 0
                     cache.CurrentCham.Enabled = true
-                else 
+                else
                     if cache.CurrentCham then cache.CurrentCham.Enabled = false end
                 end
 
-                --// GLOW CHAMS (Enhanced highlight with always-on-top + glow fill)
                 if EspSettings.EspGlowChams then
                     if not cache.CurrentGlowCham or cache.CurrentGlowCham.Parent ~= character then
                         if cache.CurrentGlowCham then cache.CurrentGlowCham:Destroy() end
@@ -11962,7 +11649,6 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                     if cache.CurrentGlowCham then cache.CurrentGlowCham.Enabled = false end
                 end
 
-                --// ENEMY WEAPON TAG
                 if EspSettings.EspEnemyWeapons then
                     local weaponName = getEnemyWeaponName(player)
                     cache.WeaponTag.Position = UDim2.new(0, screenPos.X, 0, boxPosY + sizeY + 14)
@@ -11973,10 +11659,9 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                     cache.WeaponTag.Visible = false
                 end
 
-                --// SKELETON ESP (Drawing-based bone lines)
                 if EspSettings.EspSkeleton then
                     local boneConnections = {}
-                    -- Get bone parts (works with both R6 and R15)
+
                     local head = character:FindFirstChild("Head")
                     local torso = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
                     local leftArm = character:FindFirstChild("Left Arm") or character:FindFirstChild("LeftUpperArm")
@@ -11994,14 +11679,13 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                         if rightArm then table.insert(boneConnections, {torso, rightArm}) end
                         if leftLeg then table.insert(boneConnections, {torso, leftLeg}) end
                         if rightLeg then table.insert(boneConnections, {torso, rightLeg}) end
-                        -- R15 extra bones (lower arms/legs)
+
                         if leftLowerArm and leftArm then table.insert(boneConnections, {leftArm, leftLowerArm}) end
                         if rightLowerArm and rightArm then table.insert(boneConnections, {rightArm, rightLowerArm}) end
                         if leftLowerLeg and leftLeg then table.insert(boneConnections, {leftLeg, leftLowerLeg}) end
                         if rightLowerLeg and rightLeg then table.insert(boneConnections, {rightLeg, rightLowerLeg}) end
                     end
 
-                    -- Ensure we have enough Drawing lines for this player
                     if not SkeletonCache[player] then SkeletonCache[player] = {} end
                     local skLines = SkeletonCache[player]
                     while #skLines < #boneConnections do
@@ -12017,7 +11701,6 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                         end
                     end
 
-                    -- Update line positions
                     for i, conn in ipairs(boneConnections) do
                         local line = skLines[i]
                         if line then
@@ -12033,12 +11716,12 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                             end
                         end
                     end
-                    -- Hide extra unused lines
+
                     for i = #boneConnections + 1, #skLines do
                         if skLines[i] then skLines[i].Visible = false end
                     end
                 else
-                    -- Skeleton off: hide all lines for this player
+
                     if SkeletonCache[player] then
                         for _, line in ipairs(SkeletonCache[player]) do
                             line.Visible = false
@@ -12046,7 +11729,6 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                     end
                 end
 
-                --// HEAD HITBOX SCALE (client-side enlargement)
                 if EspSettings.HeadScale > 1 then
                     local head = character:FindFirstChild("Head")
                     if head and head:IsA("BasePart") then
@@ -12062,17 +11744,17 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                 end
             else
                 cache.Box.Visible = false; cache.FilledBox.Visible = false; cache.Tracer.Visible = false; cache.HealthBar.Visible = false; cache.Tag.Visible = false; cache.DistTag.Visible = false; cache.WeaponTag.Visible = false; if cache.CurrentCham then cache.CurrentCham.Enabled = false end; if cache.CurrentGlowCham then cache.CurrentGlowCham.Enabled = false end
-                -- Hide skeleton for off-screen players
+
                 if SkeletonCache[player] then
                     for _, line in ipairs(SkeletonCache[player]) do
                         line.Visible = false
                     end
                 end
             end
-            end -- end of TeamCheckESP else block (if isTeamPlayer and TeamCheckESP then ... else ... end)
+            end
         else
             cache.Box.Visible = false; cache.FilledBox.Visible = false; cache.Tracer.Visible = false; cache.HealthBar.Visible = false; cache.Tag.Visible = false; cache.DistTag.Visible = false; cache.WeaponTag.Visible = false; if cache.CurrentCham then cache.CurrentCham.Enabled = false end; if cache.CurrentGlowCham then cache.CurrentGlowCham.Enabled = false end
-            -- Hide skeleton for dead/missing players
+
             if SkeletonCache[player] then
                 for _, line in ipairs(SkeletonCache[player]) do
                     line.Visible = false
@@ -12082,7 +11764,6 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
---// HEAD HITBOX SCALE RESTORATION (when HeadScale is set back to 1)
 local function RestoreHeadScales()
     for head, size in pairs(OriginalHeadSizes) do
         if head and head.Parent then
@@ -12095,14 +11776,12 @@ local function RestoreHeadScales()
     OriginalHeadSizes = {}
 end
 
---// WALLBANG ENGINE — Forward declaration (defined fully later)
 local WallbangEngine
 
---// PANIC KEY (Instant Kill-Switch: disables ALL combat features)
 uis.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if PlayerSettings.PanicKeyEnabled and input.KeyCode == Enum.KeyCode.P then
-        -- Disable all combat modules
+
         SilentAim.Enabled = false
         SilentAim.ProjectilePrediction = false
         getgenv().silentAimTargetPos = nil
@@ -12111,8 +11790,8 @@ uis.InputBegan:Connect(function(input, gameProcessed)
         RageMode.Enabled = false
         RageMode.WallCheck = false
         RageMode.Wallbang = false
-        if WallbangEngine and WallbangEngine.stop then WallbangEngine:stop() end  -- Stop engine (desync + Gun.StartShooting hook)
-        getgenv().silentAimTargetPos = nil  -- Reset silent aim target
+        if WallbangEngine and WallbangEngine.stop then WallbangEngine:stop() end
+        getgenv().silentAimTargetPos = nil
         HoldBot.Enabled = false
         PlayerSettings.SlideBoost = false
         VisualSettings.LockIndicator = false
@@ -12131,15 +11810,15 @@ uis.InputBegan:Connect(function(input, gameProcessed)
         GunMods.FireRateMultiplier = 1.0
         GunMods.ZeroSpreadIL = false
         GunMods.ZeroRecoilIL = false
-        -- Stop Auto Win
+
         RageMode.AutoWinEnabled = false
         RageMode.Wallbang = false
         RageMode.AimStyle = "Visible"
         RageMode.AimSpeed = 0.18
         stopAutoWin()
-        -- Stop Teleport Kill
+
         stopTeleportKill()
-        -- Reset UI toggles
+
         if Toggles.SilentAimEnabled then Toggles.SilentAimEnabled:SetValue(false) end
         if Toggles.TriggerBotEnabled then Toggles.TriggerBotEnabled:SetValue(false) end
         if Toggles.RageModeEnabled then Toggles.RageModeEnabled:SetValue(false) end
@@ -12151,72 +11830,63 @@ uis.InputBegan:Connect(function(input, gameProcessed)
         if Toggles.AutoWin1v1 then Toggles.AutoWin1v1:SetValue(false) end
         if Toggles.RageWallbang then Toggles.RageWallbang:SetValue(false) end
         if Toggles.RageWallCheck then Toggles.RageWallCheck:SetValue(false) end
-        -- Reset smoothing state
+
         holdBotPrevX = 0
         holdBotPrevY = 0
         holdBotCurrentTarget = nil
-        -- Disable the stealth wallbang master flag.
-        -- The __index hooks check this flag — when false, reads pass through to original values.
-        -- We do NOT remove the metatables (they stay attached but become inert).
-        -- This is cleaner than trying to unhook (which is hard with hookmetamethod).
+
         if WallbangStealthState then
             WallbangStealthState.enabled = false
         end
-        -- Restore head scales
+
         EspSettings.HeadScale = 1.0
         RestoreHeadScales()
-        -- Reset headscale UI slider if it exists
+
         if Options.HeadHitboxScale then Options.HeadHitboxScale:SetValue(1) end
-        -- Hide all FOV circles
+
         SAFovRing.Visible = false; SAFovBg.Visible = false
         RageFovRing.Visible = false; RageFovBg.Visible = false
         HoldBotFovRing.Visible = false; HoldBotFovBg.Visible = false
-        -- Stop Fly
+
         PlayerSettings.FlyEnabled = false
         stopFly()
         if Toggles.FlyToggle then Toggles.FlyToggle:SetValue(false) end
-        -- Stop Fullbright
+
         PlayerSettings.FullbrightEnabled = false
         setFullbright(false)
         if Toggles.FullbrightToggle then Toggles.FullbrightToggle:SetValue(false) end
-        -- Stop Anti-Ragdoll
+
         PlayerSettings.AntiRagdollEnabled = false
         setAntiRagdoll(false)
         if Toggles.AntiRagdollToggle then Toggles.AntiRagdollToggle:SetValue(false) end
-        -- Stop WalkSpeed override
+
         PlayerSettings.WalkSpeedEnabled = false
         if Toggles.WalkSpeedEnabled then Toggles.WalkSpeedEnabled:SetValue(false) end
-        -- Restore gravity
+
         PlayerSettings.GravityValue = 196
         workspace.Gravity = 196
         if Options.GravitySlider then Options.GravitySlider:SetValue(196) end
     end
 end)
 
---// PLAYER MOVEMENT ENGINE (WalkSpeed, JumpPower, Noclip, AirWalk, SlideBoost, Gravity)
--- WalkSpeed uses Stepped (before physics) for maximum reliability
--- Rivals resets WalkSpeed every frame server-side, so we must override BEFORE physics simulates
 rs.Stepped:Connect(function()
     local char = lp.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
 
-    -- WalkSpeed (aggressive enforcement — Stepped runs before physics)
     if PlayerSettings.WalkSpeedEnabled then
         pcall(function()
             hum.WalkSpeed = PlayerSettings.WalkSpeed
         end)
     end
 
-    -- JumpPower
     if PlayerSettings.JumpPowerEnabled then
         pcall(function()
             hum.JumpPower = PlayerSettings.JumpPower
         end)
     end
 
-    -- Noclip (walk through walls)
     if PlayerSettings.NoclipEnabled then
         pcall(function()
             for _, part in ipairs(char:GetDescendants()) do
@@ -12228,16 +11898,14 @@ rs.Stepped:Connect(function()
     end
 end)
 
--- Gravity and AirWalk use RenderStepped (visual/physics tweaks)
 rs.RenderStepped:Connect(function()
-    -- Gravity
+
     if PlayerSettings.GravityValue ~= 196 then
         pcall(function()
             workspace.Gravity = PlayerSettings.GravityValue
         end)
     end
 
-    -- AirWalk (stay in the air — no gravity fall)
     if PlayerSettings.AirWalkEnabled then
         pcall(function()
             local char = lp.Character
@@ -12253,14 +11921,13 @@ rs.RenderStepped:Connect(function()
         end)
     end
 
-    -- Slide Boost (speed boost while crouching — LeftCtrl held)
     if PlayerSettings.SlideBoost then
         pcall(function()
             local char2 = lp.Character
             if char2 then
                 local rootPart = char2:FindFirstChild("HumanoidRootPart")
                 if rootPart and uis:IsKeyDown(Enum.KeyCode.LeftControl) then
-                    local dt = 1/60 -- Approximate frame time
+                    local dt = 1/60
                     rootPart.CFrame = rootPart.CFrame + (camera.CFrame.LookVector * PlayerSettings.SlideBoostPower * dt)
                 end
             end
@@ -12268,9 +11935,6 @@ rs.RenderStepped:Connect(function()
     end
 end)
 
---// WALKSPEED — Simple working version (from Diablo Hub script)
--- Uses direct WalkSpeed set + Heartbeat "Always Active" to keep reapplying.
--- This is simpler and more reliable than the Stepped + __newindex hook approach.
 local walkSpeedHeartbeatConn = nil
 
 local function startWalkSpeedEnforce()
@@ -12295,11 +11959,8 @@ local function stopWalkSpeedEnforce()
     end
 end
 
--- Start enforcement loop (it self-checks WalkSpeedEnabled each frame)
 startWalkSpeedEnforce()
 
---// PROJECTILE VELOCITY PREDICTION ENGINE (from ItemLibrary)
--- Calculates travel time from weapon projectile speed to lead targets
 local ProjSpeedCache = {}
 local ProjSpeedLoaded = false
 local function getProjectileSpeed()
@@ -12317,7 +11978,6 @@ local function getProjectileSpeed()
     return ProjSpeedCache
 end
 
--- Get current weapon name from player's character tool
 local function getCurrentWeaponName()
     local char = lp.Character
     if not char then return nil end
@@ -12326,41 +11986,36 @@ local function getCurrentWeaponName()
     return nil
 end
 
--- Calculate predicted position using projectile velocity
 local function calculateProjectilePrediction(targetPos, targetRoot, weaponName, basePrediction)
     if not SilentAim.ProjectilePrediction then return targetPos end
     local speeds = getProjectileSpeed()
-    local projSpeed = speeds[weaponName] or 900 -- Default fallback speed
+    local projSpeed = speeds[weaponName] or 900
     local camPos = camera.CFrame.Position
     local dist = (targetPos - camPos).Magnitude
     if dist <= 0 or projSpeed <= 0 then return targetPos end
-    
+
     local travelTime = dist / projSpeed
     local estVel = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.zero
-    
-    -- Calculate lead factor (don't lead for very short travel times)
+
     local leadFactor = 1
     if travelTime < 0.04 then
         leadFactor = 0
     elseif travelTime < 0.12 then
         leadFactor = (travelTime - 0.04) / (0.12 - 0.04)
     end
-    
-    -- Decompose velocity into forward and lateral components
+
     local dir = (targetPos - camPos)
     local dirUnit = dir.Magnitude > 0 and (dir / dir.Magnitude) or Vector3.zero
     local lateral = estVel - dirUnit * estVel:Dot(dirUnit)
-    
-    -- Apply prediction
+
     local predicted = targetPos + lateral * travelTime * leadFactor
-    -- Also add base prediction for vertical movement
+
     if basePrediction > 0 and targetRoot then
         predicted = predicted + (targetRoot.AssemblyLinearVelocity * basePrediction)
     end
     return predicted
 end
 
---// ENEMY WEAPON DETECTION (reads ItemLibrary to identify held weapons)
 local EnemyWeaponCache = {}
 local function getEnemyWeaponName(player)
     if EnemyWeaponCache[player] then return EnemyWeaponCache[player] end
@@ -12375,7 +12030,6 @@ local function getEnemyWeaponName(player)
     return "—"
 end
 
--- Clear weapon cache periodically
 task.spawn(function()
     while task.wait(2) do
         if Library.Unloaded then break end
@@ -12383,18 +12037,17 @@ task.spawn(function()
     end
 end)
 
---// DEVICE SPOOFER EXECUTION ENGINE
 local function FireSpoof(wantedDeviceName)
     local actual = "MouseKeyboard"
     local wanted = DeviceMapping[wantedDeviceName] or "Gamepad"
-    
+
     local success, remote = pcall(function()
         return ReplicatedStorage:WaitForChild("Remotes")
             :WaitForChild("Replication")
             :WaitForChild("Fighter")
             :WaitForChild("SetControls")
     end)
-    
+
     if success and remote then
         remote:FireServer(actual)
         task.wait(0.3)
@@ -12411,14 +12064,11 @@ task.spawn(function()
     end
 end)
 
---// AUTO WIN 1v1 ENGINE
--- Works exactly like the original: Silent Aim + ItemLibrary Fire Rate/Spread/Recoil mods + Auto Shoot
--- Uses utility.Raycast hook + hookmetamethod for bullet redirection
 getgenv().AutoWinConnection = nil
 getgenv().AutoShootConnection = nil
 
 local function applyAutoWinItemLibMods()
-    -- Exactly like the original script: modify ItemLibrary values
+
     pcall(function()
         local RS = ReplicatedStorage
         local Items = require(RS:WaitForChild("Modules", 10):WaitForChild("ItemLibrary", 10)).Items
@@ -12435,28 +12085,17 @@ local function applyAutoWinItemLibMods()
     end)
 end
 
---// WALLBANG: Disable wall clip prevention in ItemLibrary
--- Rivals weapons have ProjectileWallClipPreventionEnabled = true
--- This makes the weapon reject hits if a wall is between player and target
--- Setting it to false = removes the client-side wall check
--- Combined with Desync + Gun.StartShooting hook + EncodeCFrame!
 getgenv().WallbangConnection = nil
 
--- STEALTH WALLBANG STATE
--- Tracks which item tables we've already attached a stealth metatable to.
--- The metatable intercepts reads of wall-pierce keys and returns our modified values,
--- WITHOUT touching the raw table — so any AC that checksums the raw table sees the originals.
--- (WallbangStealthState is forward-declared near the top of the file so the rage-toggle-disable
--- handler can reference it safely. We assign to it here.)
 WallbangStealthState = {
-    enabled = false,       -- master toggle — false = hooks pass-through (no override)
-    applied = {},          -- set of item tables we've already stealth-hooked
-    debugLog = {},         -- ring buffer of last 20 debug messages
-    statFound = {          -- which keys exist on the items (for debug)
+    enabled = false,
+    applied = {},
+    debugLog = {},
+    statFound = {
         ProjectileWallClipPreventionEnabled = 0,
         RaycastPierceCount = 0,
         RaycastGrabSmallHitboxes = 0,
-        -- alternate keys we also try to intercept
+
         WallClipPrevention = 0,
         PierceCount = 0,
         MaxPierce = 0,
@@ -12472,18 +12111,15 @@ local function wbDebug(msg)
     if #WallbangStealthState.debugLog > 20 then
         table.remove(WallbangStealthState.debugLog, 1)
     end
-    -- Print to console (visible in devtools)
+
     print(entry)
 end
 
--- Apply stealth metamethod hook to a single item data table.
--- Returns true if a hook was attached (or already attached).
 local function applyStealthToItem(name, data)
     if typeof(data) ~= "table" then return false end
     if WallbangStealthState.applied[data] then return false end
     WallbangStealthState.applied[data] = true
 
-    -- Detect which keys are actually present on this item (for debug stats)
     if data.ProjectileWallClipPreventionEnabled ~= nil then
         WallbangStealthState.statFound.ProjectileWallClipPreventionEnabled =
             WallbangStealthState.statFound.ProjectileWallClipPreventionEnabled + 1
@@ -12496,46 +12132,32 @@ local function applyStealthToItem(name, data)
         WallbangStealthState.statFound.RaycastGrabSmallHitboxes =
             WallbangStealthState.statFound.RaycastGrabSmallHitboxes + 1
     end
-    -- alt keys
+
     for _, alt in ipairs({"WallClipPrevention", "PierceCount", "MaxPierce", "Penetration", "CanPierce", "IgnoreWalls"}) do
         if data[alt] ~= nil then
             WallbangStealthState.statFound[alt] = WallbangStealthState.statFound[alt] + 1
         end
     end
 
-    -- The wall-pierce overrides we want reads to return.
-    -- These are the keys the gun's projectile raycast code consults.
     local overrides = {
-        -- Primary (Rivals-specific — confirmed by ItemLibrary reverse-engineering)
-        ProjectileWallClipPreventionEnabled = false,  -- main wallbang enabler
-        RaycastPierceCount = 999,                     -- pierce 999 walls (was 10 — go full power)
-        RaycastGrabSmallHitboxes = true,              -- grab small hitboxes through walls
-        -- Alternate key names (in case the game uses these on some items)
+
+        ProjectileWallClipPreventionEnabled = false,
+        RaycastPierceCount = 999,
+        RaycastGrabSmallHitboxes = true,
+
         WallClipPrevention = false,
         PierceCount = 999,
         MaxPierce = 999,
         Penetration = 999,
         CanPierce = true,
         IgnoreWalls = true,
-        -- Hit-chance / hit-confirmation
+
         AlwaysHit = true,
         HitChance = 1.0,
-        -- Wallbang damage multiplier (some games scale damage per wall pierced)
+
         WallDamageMultiplier = 1.0,
         DamageFalloffPerWall = 0.0,
     }
-
-    -- STEALTH HOOK STRATEGY
-    -- 1) If the table already has a metatable with __index, we hookmetamethod __index
-    --    (patch the metamethod in-place — table reference unchanged, stealthy).
-    -- 2) If no metatable, we set a new one whose __index intercepts our keys.
-    --    The raw table values are NOT modified — only reads go through our hook.
-    -- 3) If hookmetamethod fails (some executors restrict it), we fall back to
-    --    direct mutation (still works, just less stealthy).
-    --
-    -- IMPORTANT: All hooks check WallbangStealthState.enabled — when false, they pass through
-    -- to the original behavior. This lets WallbangEngine:stop() cleanly disable wallbang
-    -- without needing to unhook (which is hard with hookmetamethod).
 
     local mt = getrawmetatable and getrawmetatable(data)
     local oldIndex = mt and mt.__index
@@ -12543,7 +12165,6 @@ local function applyStealthToItem(name, data)
 
     local hooked = false
 
-    -- The __index interception function (shared between Strategy 1 and 2)
     local indexHook = function(t, k)
         if WallbangStealthState.enabled and overrides[k] ~= nil then
             return overrides[k]
@@ -12554,10 +12175,9 @@ local function applyStealthToItem(name, data)
         return rawget(t, k)
     end
 
-    -- The __newindex interception function (blocks AC from "fixing" our values while enabled)
     local newIndexHook = function(t, k, v)
         if WallbangStealthState.enabled and overrides[k] ~= nil then
-            return  -- swallow: keep our override (silent — AC thinks it wrote successfully)
+            return
         end
         if type(oldNewIndex) == "function" then
             return oldNewIndex(t, k, v)
@@ -12565,9 +12185,6 @@ local function applyStealthToItem(name, data)
         return rawset(t, k, v)
     end
 
-    -- Strategy 1: hookmetamethod (preferred — patches in-place, table reference unchanged)
-    -- This works on tables WITH or WITHOUT an existing metatable (hookmetamethod hooks
-    -- at the engine level). If it fails, we fall back to Strategy 2.
     if hookmetamethod and getrawmetatable then
         pcall(function()
             hookmetamethod(data, "__index", indexHook)
@@ -12576,10 +12193,9 @@ local function applyStealthToItem(name, data)
         end)
     end
 
-    -- Strategy 2: set a fresh metatable (if hookmetamethod failed or unavailable)
     if not hooked and setmetatable then
         pcall(function()
-            -- If there's an existing metatable, preserve its other metamethods
+
             local baseMT = mt or {}
             local newMT = {}
             for k, v in pairs(baseMT) do
@@ -12587,7 +12203,7 @@ local function applyStealthToItem(name, data)
             end
             newMT.__index = indexHook
             newMT.__newindex = newIndexHook
-            newMT.__zythera_wallbang = true  -- marker so we can detect our own metatable later
+            newMT.__zythera_wallbang = true
             if setmetatable then
                 setmetatable(data, newMT)
                 hooked = true
@@ -12595,11 +12211,6 @@ local function applyStealthToItem(name, data)
         end)
     end
 
-    -- Strategy 3 (FALLBACK): direct mutation if both metamethod strategies failed.
-    -- Less stealthy (AC can checksum the raw table) but still makes wallbang work.
-    -- We CAN'T easily undo this on disable, so we only set values when enabled is true
-    -- via a re-apply loop. The values stay modified after disable, but the wallbang engine
-    -- itself is disabled (Gun.StartShooting hook returns early when active=false).
     if not hooked then
         if WallbangStealthState.enabled then
             for k, v in pairs(overrides) do
@@ -12655,17 +12266,14 @@ local function applyWallbangMods()
 end
 
 local function startWallbang()
-    -- Enable the stealth wallbang master flag BEFORE applying mods.
-    -- The __index hooks check this flag — when true, reads return our overrides;
-    -- when false, they pass through to the original values.
+
     WallbangStealthState.enabled = true
     applyWallbangMods()
-    -- Start the Wallbang Engine (Desync + Gun.StartShooting + EncodeCFrame)
-    -- [V8 FIX] Check if WallbangEngine is defined before calling :start()
+
     if WallbangEngine and WallbangEngine.start then
         WallbangEngine:start()
     else
-        -- WallbangEngine not loaded yet — retry after a short delay
+
         task.spawn(function()
             task.wait(1)
             if WallbangEngine and WallbangEngine.start then
@@ -12678,18 +12286,15 @@ end
 local autoWinLastFire = 0
 
 local function startAutoWin()
-    -- 1. Enable Silent Aim (using utility.Raycast hook + hookmetamethod)
+
     SilentAim.Enabled = true
     if Toggles.SilentAimEnabled then Toggles.SilentAimEnabled:SetValue(true) end
 
-    -- 2. Apply ItemLibrary mods (fire rate, spread, recoil — exactly like original)
     applyAutoWinItemLibMods()
 
-    -- 3. Auto Shoot — task.spawn loop (NOT RenderStepped, to avoid callback stacking)
     if getgenv().AutoWinConnection then getgenv().AutoWinConnection = nil end
     if getgenv().AutoShootConnection then getgenv().AutoShootConnection:Disconnect() end
 
-    -- Auto Shoot runs on RenderStepped but uses tick-based throttling (no task.wait inside)
     getgenv().AutoShootConnection = RunService.RenderStepped:Connect(function()
         if not RageMode.AutoWinEnabled then return end
         pcall(function()
@@ -12716,18 +12321,17 @@ local function startAutoWin()
             end
 
             if best then
-                -- Throttle: only fire every 0.05 seconds (same as original)
+
                 local now = tick()
                 if now - autoWinLastFire >= 0.05 then
                     autoWinLastFire = now
-                    -- Auto fire via mouse1click
+
                     autoFire()
                 end
             end
         end)
     end)
 
-    -- Re-apply ItemLibrary mods every 2 seconds (games may reset them)
     getgenv().AutoWinConnection = task.spawn(function()
         while RageMode.AutoWinEnabled do
             applyAutoWinItemLibMods()
@@ -12743,7 +12347,7 @@ local function startAutoWin()
 end
 
 local function stopAutoWin()
-    -- Disconnect auto shoot
+
     if getgenv().AutoShootConnection then
         getgenv().AutoShootConnection:Disconnect()
         getgenv().AutoShootConnection = nil
@@ -12752,7 +12356,6 @@ local function stopAutoWin()
         getgenv().AutoWinConnection = nil
     end
 
-    -- Disable Silent Aim
     SilentAim.Enabled = false
     if Toggles.SilentAimEnabled then Toggles.SilentAimEnabled:SetValue(false) end
 
@@ -12763,8 +12366,6 @@ local function stopAutoWin()
     })
 end
 
---// TELEPORT KILL ENGINE
--- Continuously teleports local player behind the target player on Heartbeat
 local function findTpTarget(partialName)
     if not partialName or partialName == "" then return nil end
     local lowerName = string.lower(partialName)
@@ -12804,7 +12405,6 @@ local function stopTeleportKill()
     end
 end
 
--- Auto-reconnect on character respawn
 lp.CharacterAdded:Connect(function()
     task.wait(1)
     if TeleportKillSettings.Enabled and TeleportKillSettings.AutoReconnect and tpKillTarget then
@@ -12812,19 +12412,6 @@ lp.CharacterAdded:Connect(function()
     end
 end)
 
--- ============================================================
--- [V8] ANTI RIOT SHIELD SYSTEM
--- Prevents the Riot Katana/Shield from reflecting your bullets back at you.
--- Strategy:
---   1. Destroy any "RiotShieldPart" in workspace (enemy shields)
---   2. Monitor for new RiotShieldParts being added and destroy them
---   3. Disable any "Reflect" attributes on characters
--- ============================================================
-
---// ITEM-LIBRARY FIRE RATE MODIFIER ENGINE
--- Specifically targets ReplicatedStorage > Modules > ItemLibrary for Rivals
--- Backs up original values and applies multiplier to ShootCooldown / ShootBurstCooldown
--- [V8 FIX] Wrapped in do...end to release locals (Lua 200 local limit)
 do
 local ItemLibBackup = {}
 local ItemLibLoaded = false
@@ -12838,7 +12425,6 @@ task.spawn(function()
     if not success or not Items then return end
     ItemLibLoaded = true
 
-    -- Backup original values
     for name, data in pairs(Items) do
         if typeof(data) == "table" then
             ItemLibBackup[name] = {
@@ -12851,14 +12437,12 @@ task.spawn(function()
         end
     end
 
-    -- Apply ItemLibrary-specific mods in a loop (re-apply every 2 seconds)
-    -- Exceptions: Sniper, Crossbow, Bow, RPG (these should not be modified)
     local exceptions = { ["Sniper"] = true, ["Crossbow"] = true, ["Bow"] = true, ["RPG"] = true }
 
     local function applyItemLibMods()
         for name, data in pairs(Items) do
             if typeof(data) == "table" and not exceptions[name] and ItemLibBackup[name] then
-                -- Fire Rate Multiplier
+
                 if GunMods.MasterEnabled and GunMods.RapidFire and GunMods.FireRateMultiplier ~= 1.0 then
                     if data.ShootCooldown and ItemLibBackup[name].ShootCooldown then
                         data.ShootCooldown = ItemLibBackup[name].ShootCooldown * GunMods.FireRateMultiplier
@@ -12867,12 +12451,12 @@ task.spawn(function()
                         data.ShootBurstCooldown = ItemLibBackup[name].ShootBurstCooldown * GunMods.FireRateMultiplier
                     end
                 end
-                -- Zero Spread via ItemLibrary
+
                 if GunMods.MasterEnabled and GunMods.ZeroSpreadIL then
                     if data.ShootSpread then data.ShootSpread = 0 end
                     if data.ShootAccuracy then data.ShootAccuracy = 0 end
                 end
-                -- Zero Recoil via ItemLibrary
+
                 if GunMods.MasterEnabled and GunMods.ZeroRecoilIL then
                     if data.ShootRecoil then data.ShootRecoil = 0 end
                 end
@@ -12889,11 +12473,126 @@ task.spawn(function()
     end
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - RAGE MODE / WALLBANG — top of Combat tab)
--- [V6] Rage Bot Enable — master toggle at the TOP
--- [V8 FIX] When turned OFF, disables all Rage Bot features (Wallbang, Auto Shoot, etc.)
--- [V8 FIX] Wrapped in do...end to release locals (Lua 200 local limit)
 do
+
+local RageTracer = Drawing.new("Line")
+RageTracer.Visible = false
+RageTracer.Color = Color3.fromRGB(255, 50, 50)
+RageTracer.Thickness = 1
+RageTracer.Transparency = 1
+
+local RageTracerBeamPart = Instance.new("Part")
+RageTracerBeamPart.Name = "RageTracerBeam"
+RageTracerBeamPart.Anchored = true
+RageTracerBeamPart.CanCollide = false
+RageTracerBeamPart.CanQuery = false
+RageTracerBeamPart.CastShadow = false
+RageTracerBeamPart.Material = Enum.Material.Neon
+RageTracerBeamPart.Color = Color3.fromRGB(255, 50, 50)
+RageTracerBeamPart.Transparency = 1
+RageTracerBeamPart.Size = Vector3.new(0.15, 0.15, 1)
+
+RageTracerBeamPart.Parent = nil
+
+local RAGE_TRACER_DURATION = 0.4
+local rageTracerShowUntil = 0
+
+uis.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if RageMode.Enabled and RageMode.ShowTracer then
+            rageTracerShowUntil = tick() + RAGE_TRACER_DURATION
+        end
+    end
+end)
+
+local function getTracerOrigin3D()
+    local camPos = camera.CFrame.Position
+    local lpChar = lp.Character
+    if lpChar then
+        local head = lpChar:FindFirstChild("Head")
+        if head then
+
+            return head.Position
+        end
+    end
+    return camPos
+end
+
+local function positionBeamBetween(p1, p2, color3, thickness)
+    if not p1 or not p2 then return end
+    local dist = (p2 - p1).Magnitude
+    if dist < 0.1 then return end
+    local mid = (p1 + p2) * 0.5
+    local lookAt = p2
+    local cf = CFrame.lookAt(mid, lookAt)
+    RageTracerBeamPart.CFrame = cf
+    RageTracerBeamPart.Size = Vector3.new(thickness, thickness, dist)
+    RageTracerBeamPart.Color = color3
+    RageTracerBeamPart.Parent = workspace
+end
+
+task.spawn(function()
+    while true do
+        local now = tick()
+
+        local autoShootActive = (getgenv().VoidSpamGlobal and getgenv().VoidSpamGlobal.Active) or false
+        local manualActive = now < rageTracerShowUntil
+        local shouldShow = RageMode.Enabled and RageMode.ShowTracer and (autoShootActive or manualActive)
+
+        if shouldShow then
+            local target = get_best_target(RageMode)
+            if target and target.Parent and target.Position then
+                local targetWorld = target.Position
+                local targetPos2D, onScreen = camera:WorldToViewportPoint(targetWorld)
+
+                if onScreen then
+                    local startPos2D
+                    if RageMode.TracerStart == "Cursor" then
+                        startPos2D = uis:GetMouseLocation()
+                    elseif RageMode.TracerStart == "Bottom" then
+                        startPos2D = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                    else
+                        startPos2D = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                    end
+                    RageTracer.From = startPos2D
+                    RageTracer.To = Vector2.new(targetPos2D.X, targetPos2D.Y)
+                    RageTracer.Color = RageMode.TracerColor
+                    RageTracer.Thickness = RageMode.TracerThickness
+
+                    if autoShootActive then
+                        RageTracer.Transparency = 1
+                    else
+                        local remaining = rageTracerShowUntil - now
+                        local alpha = math.clamp(remaining / RAGE_TRACER_DURATION, 0, 1)
+                        RageTracer.Transparency = 1 - alpha
+                    end
+                    RageTracer.Visible = true
+                else
+                    RageTracer.Visible = false
+                end
+
+                local origin3D = getTracerOrigin3D()
+                positionBeamBetween(origin3D, targetWorld, RageMode.TracerColor, math.max(RageMode.TracerThickness * 0.1, 0.1))
+                if autoShootActive then
+                    RageTracerBeamPart.Transparency = 0.2
+                else
+                    local remaining = rageTracerShowUntil - now
+                    local alpha = math.clamp(remaining / RAGE_TRACER_DURATION, 0, 1)
+                    RageTracerBeamPart.Transparency = 1 - alpha * 0.7
+                end
+            else
+                RageTracer.Visible = false
+                RageTracerBeamPart.Parent = nil
+            end
+        else
+            RageTracer.Visible = false
+            RageTracerBeamPart.Parent = nil
+        end
+        task.wait(0.02)
+    end
+end)
+
 RageModeGroup:AddToggle("RageBotEnable", {
         Text = "Rage Bot Enable",
         Default = RageMode.Enabled,
@@ -12901,23 +12600,21 @@ RageModeGroup:AddToggle("RageBotEnable", {
 })
 Toggles.RageBotEnable:OnChanged(function()
         RageMode.Enabled = Toggles.RageBotEnable.Value
-        -- [V8 FIX] When Rage Bot is disabled, force-stop all dependent features
         if not RageMode.Enabled then
-            -- Stop Wallbang
             if RageMode.Wallbang then
                 RageMode.Wallbang = false
                 pcall(function() WallbangEngine:stop() end)
                 if Toggles.RageWallbang then Toggles.RageWallbang:SetValue(false) end
             end
-            -- Stop Auto Shoot (VoidSpam)
-            if Toggles.VoidSpam and Toggles.VoidSpam.Value then
-                -- Don't force the toggle off (user can re-enable later), but stop the firing loop
-                -- The Heartbeat loop will detect RageMode.Enabled = false and stop firing
+            if getgenv().VoidSpamGlobal and getgenv().VoidSpamGlobal.stopLoop then
+                getgenv().VoidSpamGlobal.stopLoop()
             end
+            RageTracer.Visible = false
+            RageTracerBeamPart.Parent = nil
+            rageTracerShowUntil = 0
         end
 end)
 
--- [V2] Use FOV technique toggle
 RageModeGroup:AddToggle("RageUseFOV", {
         Text = "Use FOV (Legit Rage)",
         Default = RageMode.UseFOV,
@@ -12925,7 +12622,7 @@ RageModeGroup:AddToggle("RageUseFOV", {
 })
 Toggles.RageUseFOV:OnChanged(function()
         RageMode.UseFOV = Toggles.RageUseFOV.Value
-        -- When UseFOV is toggled, update the FOV value
+
         if RageMode.UseFOV then
             RageMode.FOV = Options.RageFOVRadius and Options.RageFOVRadius.Value or 250
         else
@@ -12933,7 +12630,6 @@ Toggles.RageUseFOV:OnChanged(function()
         end
 end)
 
--- [V5] Show FOV Circle toggle — separate control for visibility
 RageModeGroup:AddToggle("RageShowFOV", {
         Text = "Show FOV Circle",
         Default = false,
@@ -12943,7 +12639,6 @@ Toggles.RageShowFOV:OnChanged(function()
         RageMode.FovVisible = Toggles.RageShowFOV.Value
 end)
 
--- [V5] Filled FOV Circle toggle
 RageModeGroup:AddToggle("RageFillFOV", {
         Text = "Filled FOV Circle",
         Default = false,
@@ -12953,7 +12648,6 @@ Toggles.RageFillFOV:OnChanged(function()
         RageMode.FovFilled = Toggles.RageFillFOV.Value
 end)
 
--- [V8] Rage Mode FOV Color picker
 RageModeGroup:AddLabel("FOV Circle Color"):AddColorPicker("RageFovColor", {
         Default = Color3.fromRGB(255, 0, 0),
         Title = "Rage Mode FOV Color",
@@ -12971,7 +12665,6 @@ Toggles.RageFovRainbow:OnChanged(function()
         RageMode.FovRainbow = Toggles.RageFovRainbow.Value
 end)
 
--- [V2] FOV Radius slider for Rage Mode (only used when UseFOV is on)
 RageModeGroup:AddSlider("RageFOVRadius", {
         Text = "Rage FOV Radius",
         Default = 250,
@@ -12992,7 +12685,7 @@ RageModeGroup:AddToggle("RageWallbang", {
         Tooltip = "Desync + Shot Data Hook — kills through walls via Gun.StartShooting modification. Requires Rage Bot Enable to be ON.",
 })
 Toggles.RageWallbang:OnChanged(function()
-        -- [V8 FIX] Wallbang can only be enabled if Rage Bot is enabled
+
         if Toggles.RageWallbang.Value and not RageMode.Enabled then
             Toggles.RageWallbang:SetValue(false)
             if getgenv().ZX_Notify then
@@ -13010,53 +12703,100 @@ Toggles.RageWallbang:OnChanged(function()
         end
 end)
 
---// AUTO SHOOT — max speed auto-fire via RenderStepped (TOGGLE mode)
--- Fires 8 clicks per frame (max safe limit) = 480 shots/sec — fastest possible.
--- Toggle once to start, toggle again to stop.
--- Wrapped in `do ... end` to release locals (Lua 200 local limit).
-do
-local VoidSpam = {
-    Enabled = false,
-    Active = false,     -- true while firing is active
-    Connection = nil,   -- RenderStepped connection reference
-}
+RageModeGroup:AddDivider()
+RageModeGroup:AddLabel("Bullet Tracer (Auto on Click)")
+RageModeGroup:AddToggle("RageShowTracer", {
+        Text = "Bullet Tracer",
+        Default = true,
+        Tooltip = "Automatically draws a tracer line from your cursor to the target whenever you click/fire. Works for both manual fire and Auto Shoot.",
+})
+Toggles.RageShowTracer:OnChanged(function()
+        RageMode.ShowTracer = Toggles.RageShowTracer.Value
+        if not RageMode.ShowTracer then
+            RageTracer.Visible = false
+        end
+end)
 
---// AUTO SHOOT ENGINE — 8 clicks per frame (MAX SPEED)
--- 8 clicks × 60fps = 480 shots/sec — fastest possible without C stack overflow.
+RageModeGroup:AddDropdown("RageTracerStart", {
+        Text = "Tracer Start",
+        Values = {"Cursor", "Bottom", "Center"},
+        Default = 1,
+        Multi = false,
+})
+Options.RageTracerStart:OnChanged(function()
+        RageMode.TracerStart = Options.RageTracerStart.Value
+end)
+
+RageModeGroup:AddSlider("RageTracerThickness", {
+        Text = "Tracer Thickness",
+        Default = 1,
+        Min = 1,
+        Max = 5,
+        Rounding = 0,
+})
+Options.RageTracerThickness:OnChanged(function()
+        RageMode.TracerThickness = Options.RageTracerThickness.Value
+end)
+
+getgenv().VoidSpamGlobal = getgenv().VoidSpamGlobal or {
+    Enabled = false,
+    Active = false,
+    Thread = nil,
+}
+local VoidSpam = getgenv().VoidSpamGlobal
+
+local VOIDSPAM_HOLD_TIME = 0.025
+local VOIDSPAM_GAP_TIME  = 0.020
+local VOIDSPAM_BURST_COUNT = 1
+
 local function startVoidSpamLoop()
     if VoidSpam.Active then return end
     VoidSpam.Active = true
-    VoidSpam.Connection = RunService.RenderStepped:Connect(function()
-        pcall(function()
-            for _ = 1, 8 do
-                if mouse1press then mouse1press() end
-                if mouse1release then mouse1release() end
-            end
-        end)
+    VoidSpam.Thread = task.spawn(function()
+        while VoidSpam.Active do
+            pcall(function()
+                for _ = 1, VOIDSPAM_BURST_COUNT do
+                    if not VoidSpam.Active then break end
+                    if mouse1press and mouse1release then
+
+                        mouse1press()
+                        task.wait(VOIDSPAM_HOLD_TIME)
+                        mouse1release()
+                        task.wait(VOIDSPAM_GAP_TIME)
+                    elseif mouse1click then
+
+                        mouse1click()
+                        task.wait(VOIDSPAM_HOLD_TIME + VOIDSPAM_GAP_TIME)
+                    else
+
+                        VoidSpam.Active = false
+                        break
+                    end
+                end
+            end)
+
+            task.wait(0.001)
+        end
     end)
 end
 
 local function stopVoidSpamLoop()
     VoidSpam.Active = false
-    if VoidSpam.Connection then
-        VoidSpam.Connection:Disconnect()
-        VoidSpam.Connection = nil
-    end
-    -- Release mouse in case it was stuck pressed
     pcall(function()
         if mouse1release then mouse1release() end
     end)
+
 end
 
---// AUTO SHOOT UI — [V8 FIX] Toggle now OFF by default. Must be enabled manually.
--- Auto Shoot ONLY fires when BOTH Rage Bot Enable AND Auto Shoot are ON, AND keybind is pressed.
+VoidSpam.startLoop = startVoidSpamLoop
+VoidSpam.stopLoop  = stopVoidSpamLoop
+
 RageModeGroup:AddToggle("VoidSpam", {
         Text = "Auto Shoot",
-        Default = false,  -- [V8] OFF by default — requires Rage Bot Enable
-        Tooltip = "Spam-fires at MAX SPEED (480 shots/sec). Requires Rage Bot Enable to be ON. Press the keybind (E) to start/stop.",
+        Default = false,
+        Tooltip = "Spam-fires at MAX SPEED. Requires Rage Bot Enable to be ON. Press the keybind (E) to start/stop.",
 })
 Toggles.VoidSpam:OnChanged(function()
-        -- [V8 FIX] Auto Shoot can only be enabled if Rage Bot is enabled
         if Toggles.VoidSpam.Value and not RageMode.Enabled then
             Toggles.VoidSpam:SetValue(false)
             if getgenv().ZX_Notify then
@@ -13065,43 +12805,31 @@ Toggles.VoidSpam:OnChanged(function()
             return
         end
         VoidSpam.Enabled = Toggles.VoidSpam.Value
-        -- If Auto Shoot is turned off, stop any active firing loop
         if not VoidSpam.Enabled and VoidSpam.Active then
             stopVoidSpamLoop()
         end
 end)
 
---// AUTO SHOOT KEYBIND — Toggle mode (press once to start firing, press again to stop)
 RageModeGroup:AddLabel("Auto Shoot Key"):AddKeyPicker("VoidSpamKey", {
         Default = "E",
         SyncToggleState = false,
-        Mode = "Toggle",  -- Toggle = press once to start, press again to stop
+        Mode = "Toggle",
         NoUI = false,
         Text = "Auto Shoot keybind",
 })
 
---// AUTO SHOOT — firing is controlled by keybind state AND Auto Shoot toggle AND Rage Bot Enable
--- [V8 FIX] All three conditions must be true to fire:
---   1. RageMode.Enabled (Rage Bot Enable toggle)
---   2. VoidSpam.Enabled (Auto Shoot toggle)
---   3. keyState (keybind is pressed)
 RunService.Heartbeat:Connect(function()
     if not Options.VoidSpamKey then return end
     local ok, keyState = pcall(function() return Options.VoidSpamKey:GetState() end)
     if not ok then return end
-
-    -- [V8 FIX] Only fire if Rage Bot is enabled AND Auto Shoot is enabled
     local canFire = RageMode.Enabled and VoidSpam.Enabled and keyState
-
     if canFire and not VoidSpam.Active then
         startVoidSpamLoop()
     elseif not canFire and VoidSpam.Active then
         stopVoidSpamLoop()
     end
 end)
-end  -- end of auto shoot `do` block (releases ~4 locals)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - ORBIT — auto nearest enemy with team check)
 OrbitGroup:AddToggle("OrbitEnabled", {
         Text = "Enable Orbit",
         Default = PlayerSettings.OrbitEnabled,
@@ -13163,10 +12891,6 @@ Options.OrbitHeightSlider:OnChanged(function()
         PlayerSettings.OrbitHeight = Options.OrbitHeightSlider.Value
 end)
 
---// ORBIT KEYBIND — toggle orbit on/off with a key
--- NOTE: SyncToggleState must be FALSE because this keypicker is attached to a Label,
--- not a Toggle. Labels don't have a SetValue method, so SyncToggleState=true would error.
--- We sync the state manually via the Heartbeat loop below.
 OrbitGroup:AddLabel("Orbit Key"):AddKeyPicker("OrbitKey", {
         Default = "X",
         SyncToggleState = false,
@@ -13175,11 +12899,6 @@ OrbitGroup:AddLabel("Orbit Key"):AddKeyPicker("OrbitKey", {
         Text = "Orbit keybind",
 })
 
---// ORBIT — sync keypicker state with OrbitEnabled
--- SyncToggleState means the keypicker maintains its own toggle state.
--- We read that state via GetState() and apply to PlayerSettings.OrbitEnabled.
--- We avoid calling Toggles.OrbitEnabled:SetValue() to prevent the recursion error
--- (SetValue missing on table when called from inside OnChanged callback).
 RunService.Heartbeat:Connect(function()
         if not Options.OrbitKey then return end
         local ok, keyState = pcall(function() return Options.OrbitKey:GetState() end)
@@ -13189,7 +12908,6 @@ RunService.Heartbeat:Connect(function()
         end
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - LEFT: SILENT AIM)
 SilentAimGroup:AddToggle("SilentAimEnabled", {
         Text = "Silent Aim Enabled",
         Default = SilentAim.Enabled,
@@ -13207,7 +12925,6 @@ SilentAimGroup:AddToggle("SAWallCheck", {
 Toggles.SAWallCheck:OnChanged(function()
         SilentAim.WallCheck = Toggles.SAWallCheck.Value
 end)
-
 
 SilentAimGroup:AddSlider("SAPrediction", {
         Text = "Prediction",
@@ -13261,7 +12978,6 @@ Toggles.SAFovFilled:OnChanged(function()
         SilentAim.FovFilled = Toggles.SAFovFilled.Value
 end)
 
--- [V8] Silent Aim FOV Color picker
 SilentAimGroup:AddLabel("FOV Circle Color"):AddColorPicker("SAFovColor", {
         Default = Color3.fromRGB(255, 255, 255),
         Title = "Silent Aim FOV Color",
@@ -13311,7 +13027,6 @@ Toggles.SAProjectilePrediction:OnChanged(function()
         SilentAim.ProjectilePrediction = Toggles.SAProjectilePrediction.Value
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - TEAM CHECK)
 TeamCheckGroup:AddToggle("TeamCheckEnabled", {
         Text = "Team Check",
         Default = TeamCheck.Enabled,
@@ -13321,7 +13036,6 @@ Toggles.TeamCheckEnabled:OnChanged(function()
         TeamCheck.Enabled = Toggles.TeamCheckEnabled.Value
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - RIGHT: AIMBOT)
 HoldBotGroup:AddToggle("HoldBotEnabled", {
         Text = "Aimbot Enabled",
         Default = HoldBot.Enabled,
@@ -13421,17 +13135,15 @@ Toggles.HoldBotFovFilled:OnChanged(function()
         HoldBot.FovFilled = Toggles.HoldBotFovFilled.Value
 end)
 
--- [V7] FOV Color picker for Aimbot (HoldBot) — pick ANY color you want
 HoldBotGroup:AddLabel("FOV Circle Color"):AddColorPicker("HoldBotFovColor", {
-        Default = Color3.fromRGB(0, 255, 255),  -- Cyan
+        Default = Color3.fromRGB(0, 255, 255),
         Title = "Aimbot FOV Color",
 })
 Options.HoldBotFovColor:OnChanged(function()
         HoldBot.FovColor = Options.HoldBotFovColor.Value
-        HoldBot.FovRainbow = false  -- disable rainbow when picking custom color
+        HoldBot.FovRainbow = false
 end)
 
--- [V7] Rainbow FOV toggle — cycles through all colors automatically
 HoldBotGroup:AddToggle("HoldBotFovRainbow", {
         Text = "Rainbow FOV Color",
         Default = false,
@@ -13452,7 +13164,6 @@ Options.HoldBotFovRadius:OnChanged(function()
         HoldBot.FOV = Options.HoldBotFovRadius.Value
 end)
 
--- [V5] Reaction Time slider moved to BOTTOM of Aimbot section
 HoldBotGroup:AddSlider("HoldBotReactionTime", {
         Text = "Reaction Time (ms)",
         Default = 50,
@@ -13466,7 +13177,6 @@ Options.HoldBotReactionTime:OnChanged(function()
         HoldBot.ReactionTime = Options.HoldBotReactionTime.Value / 1000
 end)
 
---// TRIGGER BOT UI (Auto-fire when crosshair is on enemy)
 TriggerBotGroup:AddToggle("TriggerBotEnabled", {
         Text = "Enable Trigger Bot",
         Default = TriggerBot.Enabled,
@@ -13507,8 +13217,6 @@ Toggles.TriggerBotKeybind:OnChanged(function()
         TriggerBot.Keybind = Toggles.TriggerBotKeybind.Value
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - ANTI-AIM v4)
--- Simple working Anti-Aim: multiplies CFrame by rotation each frame.
 AntiAimGroup:AddToggle("AntiAimEnabled", {
         Text = "Enable Anti-Aim",
         Default = AntiAim.Enabled,
@@ -13554,20 +13262,18 @@ AntiAimGroup:AddSlider("AntiAimJitterRange", {
 Options.AntiAimJitterRange:OnChanged(function()
         AntiAim.JitterRange = Options.AntiAimJitterRange.Value
 end)
-end  -- end of Combat UI do-block
+end
 
---// QUICK PRESETS (Legit / Visuals — one-click configuration)
--- [V8 FIX] Wrapped in do...end to release locals
 do
 local PresetsGroup = Tabs.Combat:AddLeftGroupbox("Quick Presets")
 
 PresetsGroup:AddButton("Legit Preset", function()
-        -- Legit: subtle features only, looks natural
+
         SilentAim.Enabled = true
         SilentAim.ProjectilePrediction = true
         SilentAim.WallCheck = true
-        SilentAim.HitPart = "UpperTorso"  -- Body shots look more legit
-        SilentAim.HitCooldown = 0.03          -- Legit: 30ms between hits
+        SilentAim.HitPart = "UpperTorso"
+        SilentAim.HitCooldown = 0.03
         SilentAim.FOV = 120
         SilentAim.MaxDistance = 300
         SilentAim.Prediction = 0.02
@@ -13579,7 +13285,7 @@ PresetsGroup:AddButton("Legit Preset", function()
         if Options.SAFovRadius then Options.SAFovRadius:SetValue(120) end
         if Options.SAMaxDistance then Options.SAMaxDistance:SetValue(300) end
         if Options.SAPrediction then Options.SAPrediction:SetValue(0.02) end
-        -- Disable rage features
+
         RageMode.Enabled = false
         if Toggles.RageModeEnabled then Toggles.RageModeEnabled:SetValue(false) end
         GunMods.MasterEnabled = false
@@ -13587,7 +13293,7 @@ PresetsGroup:AddButton("Legit Preset", function()
 end)
 
 PresetsGroup:AddButton("Visuals Preset", function()
-        -- Visuals: ESP + Chams + Lock Indicator, no combat
+
         EspSettings.EspBoxes = true
         EspSettings.EspChams = true
         EspSettings.EspNames = true
@@ -13608,7 +13314,7 @@ PresetsGroup:AddButton("Visuals Preset", function()
         if Toggles.LockIndicatorToggle then Toggles.LockIndicatorToggle:SetValue(true) end
         if Toggles.HideSmoke then Toggles.HideSmoke:SetValue(true) end
         if Toggles.HideFlashbang then Toggles.HideFlashbang:SetValue(true) end
-        -- Disable combat features
+
         SilentAim.Enabled = false
         if Toggles.SilentAimEnabled then Toggles.SilentAimEnabled:SetValue(false) end
         RageMode.Enabled = false
@@ -13616,11 +13322,8 @@ PresetsGroup:AddButton("Visuals Preset", function()
         GunMods.MasterEnabled = false
         if Toggles.GunModsMaster then Toggles.GunModsMaster:SetValue(false) end
 end)
-end  -- end of Presets do-block
+end
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - GUN MODS — from Diablo Hub script)
--- Simple gun mods using ItemLibrary require, matching the uploaded Diablo Hub script structure
--- [V8 FIX] Wrapped in do...end to release locals
 do
 local GunModApplyButton
 task.spawn(function()
@@ -13629,7 +13332,6 @@ task.spawn(function()
     local ItemLib = RS:WaitForChild("Modules", 10):WaitForChild("ItemLibrary", 10)
     if not ItemLib then return end
 
-    --// GUN MODS APPLY FUNCTION — modifies ItemLibrary weapon tables
     local function applyGunModsNow()
         local ok, lib = pcall(function() return require(ItemLib) end)
         if not ok or not lib or not lib.Items then
@@ -13833,7 +13535,6 @@ GunModsMiscGroup:AddButton("Reset All Gun Mods", function()
         Library:Notify({Title = "Gun Mods", Description = "Please rejoin server to restore original weapon values.", Time = 4})
 end)
 
---// UI COMPONENT INITIALIZATION (COMBAT TAB - HOLDBOT TARGET SETTINGS)
 HoldBotTargetGroup:AddToggle("HoldBotTargetBehindWalls", {
         Text = "Target Behind Walls",
         Default = HoldBot.TargetBehindWalls,
@@ -13875,19 +13576,16 @@ HoldBotTargetGroup:AddSlider("HoldBotMaxDistance", {
 Options.HoldBotMaxDistance:OnChanged(function()
         HoldBot.MaxDistance = Options.HoldBotMaxDistance.Value
 end)
-end  -- end of Gun Mods UI do-block
+end
 
---// GUN MODS ENGINE (Hooks into weapon configuration tables at runtime)
--- Scans ReplicatedStorage Modules for weapon config tables and overrides properties
 task.spawn(function()
-    -- Wait for game to fully load
+
     task.wait(5)
 
     local RS = ReplicatedStorage
     local Modules = RS:WaitForChild("Modules", 10)
     if not Modules then return end
 
-    -- Common weapon config table keys that games use
     local recoilKeys = {"Recoil", "CameraRecoil", "RecoilAmount", "Kick", "CameraKick", "RecoilUp", "RecoilSide", "VerticalRecoil", "HorizontalRecoil"}
     local spreadKeys = {"Spread", "Accuracy", "BulletSpread", "HipFireSpread", "ADS_Spread", "MaxSpread", "MinSpread", "ConeOfFire", "Deviation"}
     local fireRateKeys = {"FireRate", "RateOfFire", "FireDelay", "ShootDelay", "Cooldown", "FireInterval", "RPM", "RoundPerMinute", "DelayBetweenShots"}
@@ -13903,14 +13601,14 @@ task.spawn(function()
         if type(configTable) ~= "table" then return end
 
         pcall(function()
-            -- No Recoil: set all recoil values to 0
+
             if GunMods.NoRecoil then
                 for _, key in ipairs(recoilKeys) do
                     if configTable[key] ~= nil then
                         if type(configTable[key]) == "number" then
                             configTable[key] = 0
                         elseif type(configTable[key]) == "table" then
-                            -- Some games use {X=0, Y=0} tables for recoil
+
                             for subKey, _ in pairs(configTable[key]) do
                                 if type(configTable[key][subKey]) == "number" then
                                     configTable[key][subKey] = 0
@@ -13921,7 +13619,6 @@ task.spawn(function()
                 end
             end
 
-            -- No Spread: set all spread values to 0
             if GunMods.NoSpread then
                 for _, key in ipairs(spreadKeys) do
                     if configTable[key] ~= nil then
@@ -13938,22 +13635,20 @@ task.spawn(function()
                 end
             end
 
-            -- Rapid Fire: reduce fire delay to minimum
             if GunMods.RapidFire then
                 for _, key in ipairs(fireRateKeys) do
                     if configTable[key] ~= nil then
                         if type(configTable[key]) == "number" then
                             if key == "RPM" or key == "RoundPerMinute" then
-                                configTable[key] = 3000  -- 3000 RPM is absurdly fast
+                                configTable[key] = 3000
                             else
-                                configTable[key] = 0.01  -- Near-zero delay
+                                configTable[key] = 0.01
                             end
                         end
                     end
                 end
             end
 
-            -- Infinite Ammo: set magazine size to 9999
             if GunMods.InfiniteAmmo then
                 for _, key in ipairs(ammoKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -13962,7 +13657,6 @@ task.spawn(function()
                 end
             end
 
-            -- Instant Reload: set reload time to 0
             if GunMods.InstantReload then
                 for _, key in ipairs(reloadKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -13971,7 +13665,6 @@ task.spawn(function()
                 end
             end
 
-            -- Instant Equip: set equip time to 0
             if GunMods.InstantEquip then
                 for _, key in ipairs(equipKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -13980,7 +13673,6 @@ task.spawn(function()
                 end
             end
 
-            -- No Bullet Drop: set gravity/drop to 0
             if GunMods.NoBulletDrop then
                 for _, key in ipairs(bulletDropKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -13989,7 +13681,6 @@ task.spawn(function()
                 end
             end
 
-            -- Max Pierce: set penetration to 999
             if GunMods.MaxPierce then
                 for _, key in ipairs(pierceKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -13998,7 +13689,6 @@ task.spawn(function()
                 end
             end
 
-            -- One Shot Kill: set damage to 9999
             if GunMods.OneShot then
                 for _, key in ipairs(damageKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -14007,7 +13697,6 @@ task.spawn(function()
                 end
             end
 
-            -- No Cooldowns: set all cooldown values to 0
             if GunMods.NoCooldowns then
                 for _, key in ipairs(cooldownKeys) do
                     if configTable[key] ~= nil and type(configTable[key]) == "number" then
@@ -14018,9 +13707,8 @@ task.spawn(function()
         end)
     end
 
-    -- Recursively scan for weapon config tables
     local function scanForConfigs(parent, depth)
-        if depth > 4 then return end  -- Don't go too deep
+        if depth > 4 then return end
         if not parent then return end
 
         for _, child in ipairs(parent:GetChildren()) do
@@ -14037,11 +13725,11 @@ task.spawn(function()
                         end)
                         if success and type(config) == "table" then
                             applyGunMods(config, child.Name)
-                            -- Some games nest weapon tables (e.g., config.Weapons.AK47)
+
                             for subKey, subVal in pairs(config) do
                                 if type(subVal) == "table" then
                                     applyGunMods(subVal, child.Name .. "." .. subKey)
-                                    -- One more level deep
+
                                     for deepKey, deepVal in pairs(subVal) do
                                         if type(deepVal) == "table" then
                                             applyGunMods(deepVal, child.Name .. "." .. subKey .. "." .. deepKey)
@@ -14057,22 +13745,20 @@ task.spawn(function()
         end
     end
 
-    -- Run gun mods loop — continuously re-applies every 2 seconds so changes persist
-    -- (games may reset weapon configs on respawn/round change)
     local function gunModsLoop()
         while true do
             if GunMods.MasterEnabled then
                 scanForConfigs(Modules, 0)
-                -- Also scan ReplicatedStorage directly (some games put configs there)
+
                 scanForConfigs(RS, 0)
-                -- Also scan Workspace for weapon tools
+
                 local tools = player:FindFirstChild("Backpack")
                 if tools then
                     for _, tool in ipairs(tools:GetChildren()) do
                         if tool:IsA("Tool") then
                             for _, child in ipairs(tool:GetDescendants()) do
                                 if child:IsA("ModuleScript") or child:IsA("Configuration") or child:IsA("IntValue") or child:IsA("NumberValue") then
-                                    -- Override NumberValue instances in tool (some games use these)
+
                                     if child:IsA("NumberValue") then
                                         local nameLower = string.lower(child.Name)
                                         if GunMods.NoRecoil and (nameLower:find("recoil") or nameLower:find("kick")) then
@@ -14095,7 +13781,7 @@ task.spawn(function()
                                             child.Value = 9999
                                         end
                                     end
-                                    -- Try to require ModuleScripts inside tools
+
                                     if child:IsA("ModuleScript") then
                                         pcall(function()
                                             local success, config = pcall(function() return require(child) end)
@@ -14114,20 +13800,17 @@ task.spawn(function()
         end
     end
 
-    -- Start the gun mods loop
     task.spawn(gunModsLoop)
 end)
-end  -- end of ItemLib Gun Mods do-block
+end
 
 do
---// HIDE SMOKE / HIDE FLASHBANG ENGINE
--- [V8 FIX] Wrapped in task.spawn to avoid local register overflow (Lua 5.1 limit = 200 locals)
+
 task.spawn(function()
--- Rivals-specific: "Smoke Grenade" for smoke, "FlashbangEffect" for flashbang
+
 local hideSmokeConn = nil
 local hideFlashConn = nil
 
--- Hide Smoke: Instantly remove Smoke Grenade instances from workspace
 local function handleSmokeGrenade(inst)
     if not inst or not inst.Parent then return end
     for _, d in ipairs(inst:GetDescendants()) do
@@ -14146,11 +13829,11 @@ end
 
 local function startHideSmoke()
     if hideSmokeConn then return end
-    -- Remove existing smoke grenades
+
     for _, v in ipairs(workspace:GetDescendants()) do
         if v and v.Name == "Smoke Grenade" then handleSmokeGrenade(v) end
     end
-    -- Watch for new smoke grenades
+
     hideSmokeConn = workspace.DescendantAdded:Connect(function(child)
         if not VisualSettings.HideSmoke then return end
         if typeof(child) == "Instance" and child.Name == "Smoke Grenade" then
@@ -14163,7 +13846,6 @@ local function stopHideSmoke()
     if hideSmokeConn then hideSmokeConn:Disconnect(); hideSmokeConn = nil end
 end
 
--- Hide Flashbang: Remove FlashbangEffect instances from workspace and GUI
 local function handleFlashInstance(inst)
     if not inst then return end
     task.defer(function()
@@ -14173,20 +13855,20 @@ end
 
 local function startHideFlash()
     if hideFlashConn then return end
-    -- Remove existing flashbang effects in workspace
+
     for _, v in ipairs(workspace:GetDescendants()) do
         if v and (v.Name == "FlashbangEffect" or v.Name:lower():find("flash")) then
             handleFlashInstance(v)
         end
     end
-    -- Watch for new flashbang effects
+
     hideFlashConn = workspace.DescendantAdded:Connect(function(child)
         if not VisualSettings.HideFlashbang then return end
         if child and (child.Name == "FlashbangEffect" or child.Name:lower():find("flash")) then
             handleFlashInstance(child)
         end
     end)
-    -- Also continuously clear flash GUI overlays
+
     task.spawn(function()
         while VisualSettings.HideFlashbang do
             if Library.Unloaded then break end
@@ -14217,7 +13899,7 @@ end
 task.spawn(function()
     while task.wait(0.5) do
         if Library.Unloaded then break end
-        
+
         if VisualSettings.HideSmoke then
             if not hideSmokeConn then startHideSmoke() end
             pcall(function()
@@ -14231,7 +13913,7 @@ task.spawn(function()
         else
             stopHideSmoke()
         end
-        
+
         if VisualSettings.HideFlashbang then
             if not hideFlashConn then startHideFlash() end
         else
@@ -14239,10 +13921,9 @@ task.spawn(function()
         end
     end
 end)
-end)  -- end of task.spawn (Hide Smoke/Flash)
+end)
 end
 
---// UI COMPONENT INITIALIZATION (ESP LEFT SWITCHES)
 EspGroup:AddToggle("EspBoxOutlines", {
         Text = "ESP Box Outlines",
         Default = EspSettings.EspBoxes,
@@ -14307,7 +13988,7 @@ EspGroup:AddToggle("EspSkeletonToggle", {
 Toggles.EspSkeletonToggle:OnChanged(function()
         EspSettings.EspSkeleton = Toggles.EspSkeletonToggle.Value
         if not EspSettings.EspSkeleton then
-            -- Hide all skeleton lines when disabled
+
             for _, lines in pairs(SkeletonCache) do
                 for _, line in ipairs(lines) do
                     line.Visible = false
@@ -14353,12 +14034,11 @@ Toggles.TeamCheckESP:OnChanged(function()
         EspSettings.TeamCheckESP = Toggles.TeamCheckESP.Value
 end)
 
---// UI COMPONENT INITIALIZATION (ESP RIGHT - VISUAL CONFIGURATORS)
 local colorOptions = {"Red", "Blue", "Purple", "Yellow", "Pink", "Orange", "Cyan", "Rainbow"}
 
 EspVisualGroup:AddDropdown("EspColorPresets", {
         Values = colorOptions,
-        Default = 2, 
+        Default = 2,
         Multi = false,
         Text = "Main ESP Color Preset",
 })
@@ -14368,7 +14048,7 @@ end)
 
 EspVisualGroup:AddDropdown("EspFilledColorPresets", {
         Values = colorOptions,
-        Default = 2, 
+        Default = 2,
         Multi = false,
         Text = "Filled Box Color Preset",
 })
@@ -14378,7 +14058,7 @@ end)
 
 EspVisualGroup:AddDropdown("EspChamsColorPresets", {
         Values = colorOptions,
-        Default = 7, 
+        Default = 7,
         Multi = false,
         Text = "Chams Independent Color Preset",
 })
@@ -14477,7 +14157,6 @@ Options.HeadHitboxScale:OnChanged(function()
         end
 end)
 
---// UI COMPONENT INITIALIZATION (VISUALS TAB)
 VisualsGroup:AddToggle("AnimatedCrosshair", {
         Text = "Animated Crosshair",
         Default = VisualSettings.CrosshairEnabled,
@@ -14488,7 +14167,7 @@ end)
 
 VisualsGroup:AddDropdown("CrosshairColorPresets", {
         Values = colorOptions,
-        Default = 3, 
+        Default = 3,
         Multi = false,
         Text = "Crosshair Color Presets",
 })
@@ -14496,10 +14175,6 @@ Options.CrosshairColorPresets:OnChanged(function()
         VisualSettings.CrosshairColorMode = Options.CrosshairColorPresets.Value
 end)
 
--- ============================================================
--- [V8] SKY / LIGHTING COLOR CONTROLS — in its OWN groupbox
--- Pick any color you want for sky + ambient + brightness + time
--- ============================================================
 SkyColorGroup:AddToggle("SkyColorEnabled", {
         Text = "Sky Color Override",
         Default = false,
@@ -14510,7 +14185,6 @@ Toggles.SkyColorEnabled:OnChanged(function()
         applySkyColor()
 end)
 
--- Sky/Ambient color picker — pick ANY color
 SkyColorGroup:AddLabel("Sky & Ambient Color"):AddColorPicker("SkyCustomColor", {
         Default = Color3.fromRGB(80, 80, 100),
         Title = "Sky Color (Ambient + Outdoor)",
@@ -14520,7 +14194,6 @@ Options.SkyCustomColor:OnChanged(function()
         applySkyColor()
 end)
 
--- Brightness slider (controls how bright the scene is)
 SkyColorGroup:AddSlider("SkyBrightness", {
         Text = "Brightness",
         Default = 1.5,
@@ -14534,7 +14207,6 @@ Options.SkyBrightness:OnChanged(function()
         applySkyColor()
 end)
 
--- Clock time slider (controls day/night cycle, 0-24)
 SkyColorGroup:AddSlider("SkyClockTime", {
         Text = "Time of Day",
         Default = 12,
@@ -14549,7 +14221,6 @@ Options.SkyClockTime:OnChanged(function()
         applySkyColor()
 end)
 
---// UI COMPONENT INITIALIZATION (VISUALS TAB - GRENADE EFFECTS)
 GrenadeEffectsGroup:AddToggle("HideSmoke", {
         Text = "Hide Smoke",
         Default = VisualSettings.HideSmoke,
@@ -14577,9 +14248,6 @@ Toggles.LockIndicatorToggle:OnChanged(function()
         VisualSettings.LockIndicator = Toggles.LockIndicatorToggle.Value
 end)
 
---//================================================================================
---// CHAT WIN STREAK INITIALIZATION (VISUALS RIGHT PANEL)
---//================================================================================
 WinStreakGroup:AddInput("StreakTargetPlayer", {
         Default = MiscSettings.TargetPlayer,
         Numeric = false,
@@ -14630,13 +14298,13 @@ WinStreakGroup:AddButton({
         Func = function()
                 local TextChatService = game:GetService("TextChatService")
                 local StarterGui = game:GetService("StarterGui")
-                
+
                 local enderName = MiscSettings.AutoFindMe and player.DisplayName or MiscSettings.CustomEnderName
                 if enderName == "" then enderName = "Dallas" end
-                
+
                 local targetName = MiscSettings.TargetPlayer ~= "" and MiscSettings.TargetPlayer or "ABG"
                 local streakVal = MiscSettings.StreakValue ~= "" and MiscSettings.StreakValue or "14"
-                
+
                 local completeMessage = string.format(
                         "[SERVER] %s's %s win streak was ended by %s (@%s)!",
                         targetName,
@@ -14644,7 +14312,7 @@ WinStreakGroup:AddButton({
                         enderName,
                         string.lower(enderName)
                 )
-                
+
                 if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
                         local channel = TextChatService:FindFirstChild("RBXGeneral", true) or TextChatService.TextChannels.RBXSystem
                         channel:DisplaySystemMessage('<font color="rgb(224, 130, 41)"><b>' .. completeMessage .. '</b></font>')
@@ -14662,7 +14330,6 @@ WinStreakGroup:AddButton({
         DoubleClick = false
 })
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - LEFT: MOVEMENT)
 PlayerMovementGroup:AddToggle("WalkSpeedEnabled", {
         Text = "Custom Walk Speed",
         Default = PlayerSettings.WalkSpeedEnabled,
@@ -14671,7 +14338,7 @@ PlayerMovementGroup:AddToggle("WalkSpeedEnabled", {
 Toggles.WalkSpeedEnabled:OnChanged(function()
         PlayerSettings.WalkSpeedEnabled = Toggles.WalkSpeedEnabled.Value
         if not PlayerSettings.WalkSpeedEnabled then
-            -- Restore default walk speed
+
             local char = player.Character
             if char then
                 local hum = char:FindFirstChildOfClass("Humanoid")
@@ -14690,7 +14357,7 @@ PlayerMovementGroup:AddSlider("WalkSpeedValue", {
 })
 Options.WalkSpeedValue:OnChanged(function()
         PlayerSettings.WalkSpeed = Options.WalkSpeedValue.Value
-        -- Apply immediately on slider change
+
         if PlayerSettings.WalkSpeedEnabled then
             local char = player.Character
             if char then
@@ -14726,7 +14393,7 @@ PlayerMovementGroup:AddToggle("JumpPowerEnabled", {
 Toggles.JumpPowerEnabled:OnChanged(function()
         PlayerSettings.JumpPowerEnabled = Toggles.JumpPowerEnabled.Value
         if not PlayerSettings.JumpPowerEnabled then
-            -- Restore default jump power
+
             local char = lp.Character
             if char then
                 local hum = char:FindFirstChildOfClass("Humanoid")
@@ -14747,8 +14414,6 @@ Options.JumpPowerValue:OnChanged(function()
         PlayerSettings.JumpPower = Options.JumpPowerValue.Value
 end)
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - RIGHT: TOGGLES & EMERGENCY)
--- [V3 from Rage Hub] Auto BunnyHop
 PlayerTogglesGroup:AddToggle("AutoBhop", {
         Text = "Auto BunnyHop",
         Default = PlayerSettings.AutoBhop,
@@ -14758,7 +14423,6 @@ Toggles.AutoBhop:OnChanged(function()
         PlayerSettings.AutoBhop = Toggles.AutoBhop.Value
 end)
 
--- [V3 from Rage Hub] Custom Camera FOV
 PlayerTogglesGroup:AddToggle("CustomFOV", {
         Text = "Custom Camera FOV",
         Default = PlayerSettings.CustomFOV,
@@ -14767,7 +14431,7 @@ PlayerTogglesGroup:AddToggle("CustomFOV", {
 Toggles.CustomFOV:OnChanged(function()
         PlayerSettings.CustomFOV = Toggles.CustomFOV.Value
         if not PlayerSettings.CustomFOV then
-            pcall(function() camera.FieldOfView = 70 end)  -- reset to default
+            pcall(function() camera.FieldOfView = 70 end)
         end
 end)
 
@@ -14783,7 +14447,6 @@ Options.FOVValue:OnChanged(function()
         PlayerSettings.FOVValue = Options.FOVValue.Value
 end)
 
--- [V3 from Rage Hub] Show FPS Counter
 PlayerTogglesGroup:AddToggle("ShowFPS", {
         Text = "Show FPS Counter",
         Default = PlayerSettings.ShowFPS,
@@ -14793,15 +14456,10 @@ Toggles.ShowFPS:OnChanged(function()
         PlayerSettings.ShowFPS = Toggles.ShowFPS.Value
 end)
 
--- [V3 from Rage Hub] Server Hop Button
 PlayerTogglesGroup:AddButton("Server Hop", function()
         serverHop()
 end)
 
--- ============================================================
--- [V8] ANTI RIOT SHIELD UI
--- Prevents Riot Katana/Shield from reflecting your bullets
--- ============================================================
 PlayerTogglesGroup:AddToggle("InfiniteJump", {
         Text = "Infinite Jump",
         Default = PlayerSettings.InfiniteJump,
@@ -14819,7 +14477,7 @@ PlayerTogglesGroup:AddToggle("NoclipToggle", {
 Toggles.NoclipToggle:OnChanged(function()
         PlayerSettings.NoclipEnabled = Toggles.NoclipToggle.Value
         if not PlayerSettings.NoclipEnabled then
-            -- Restore collision
+
             local char = lp.Character
             if char then
                 pcall(function()
@@ -14923,7 +14581,6 @@ Toggles.AntiAfkToggle:OnChanged(function()
         setupAntiAfk(PlayerSettings.AntiAfkEnabled)
 end)
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - FLY GROUP)
 PlayerFlyGroup:AddToggle("FlyToggle", {
         Text = "Fly",
         Default = PlayerSettings.FlyEnabled,
@@ -14955,7 +14612,6 @@ Options.FlySpeedSlider:OnChanged(function()
         end
 end)
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - SERVER GROUP)
 PlayerServerGroup:AddButton("Serverhop", function()
         serverhop()
 end)
@@ -14964,7 +14620,6 @@ PlayerServerGroup:AddButton("Rejoin", function()
         rejoin()
 end)
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - TELEPORT KILL)
 TeleportKillGroup:AddInput("TpKillTargetName", {
         Default = TeleportKillSettings.TargetPlayerName,
         Numeric = false,
@@ -15033,10 +14688,6 @@ TeleportKillGroup:AddButton("Stop Teleport Kill", function()
         })
 end)
 
---// UI COMPONENT INITIALIZATION (MISC TAB)
--- ============================================================
--- [V7] SKIN CHANGER — moved to its OWN groupbox (separate from Device Spoofer)
--- ============================================================
 SkinChangerGroup:AddToggle("EnableSkinChanger", {
         Text = "Skin Changer (Unlock All Cosmetics)",
         Default = false,
@@ -15083,7 +14734,7 @@ SkinChangerGroup:AddButton("Reload Cosmetics", function()
 end)
 
 SkinChangerGroup:AddButton("Clear Saved Cosmetics", function()
-        -- Clear the saved config
+
         CosmeticUnlocker._eq = {}
         CosmeticUnlocker._favs = {}
         pcall(function()
@@ -15096,7 +14747,6 @@ SkinChangerGroup:AddButton("Clear Saved Cosmetics", function()
         end
 end)
 
---// UI COMPONENT INITIALIZATION (MISC TAB - DEVICE SPOOFER)
 MiscGroup:AddToggle("EnableDeviceSpoofer", {
         Text = "Enable Device Spoofer",
         Default = MiscSettings.SpoofEnabled,
@@ -15110,7 +14760,7 @@ end)
 
 MiscGroup:AddDropdown("SelectTargetDevice", {
         Values = {"Controller", "PC", "Mobile", "VR"},
-        Default = 1, 
+        Default = 1,
         Multi = false,
         Text = "Select Target Device",
 })
@@ -15121,7 +14771,6 @@ Options.SelectTargetDevice:OnChanged(function()
         end
 end)
 
---// TEAM DEBUG BUTTONS (inspired by reference Diablo Hub script)
 TeamDebugGroup:AddButton("Show My Team Info", function()
         UpdateTeamCache()
         local teamID = teamCache.myTeamID
@@ -15179,9 +14828,6 @@ TeamDebugGroup:AddButton("Toggle Team Check Debug Mode", function()
         })
 end)
 
---// UI COMPONENT INITIALIZATION (PLAYER TAB - PLAYER MODS QUICK ACCESS)
--- Quick-access toggles that link to existing settings (Hitbox, Infinite Jump, Speed)
--- These mirror settings found in ESP tab (Hitbox) and Player tab (Jump/Speed) for convenience
 local PlayerModsGroup = Tabs.Player:AddLeftGroupbox("Player Mods (Quick Access)")
 
 PlayerModsGroup:AddToggle("QuickHitboxExpander", {
@@ -15196,7 +14842,7 @@ Toggles.QuickHitboxExpander:OnChanged(function()
                 EspSettings.HeadScale = 1
                 RestoreHeadScales()
         end
-        -- Sync the ESP tab slider so both UI elements stay consistent
+
         if Options.HeadHitboxScale then
                 Options.HeadHitboxScale:SetValue(EspSettings.HeadScale)
         end
@@ -15209,7 +14855,7 @@ PlayerModsGroup:AddToggle("QuickInfiniteJump", {
 })
 Toggles.QuickInfiniteJump:OnChanged(function()
         PlayerSettings.InfiniteJump = Toggles.QuickInfiniteJump.Value
-        -- Sync the Player tab toggle so both UI elements stay consistent
+
         if Toggles.InfiniteJump then
                 Toggles.InfiniteJump:SetValue(PlayerSettings.InfiniteJump)
         end
@@ -15222,7 +14868,7 @@ PlayerModsGroup:AddToggle("QuickSpeedHack", {
 })
 Toggles.QuickSpeedHack:OnChanged(function()
         PlayerSettings.WalkSpeedEnabled = Toggles.QuickSpeedHack.Value
-        -- Sync the Player tab toggle so both UI elements stay consistent
+
         if Toggles.WalkSpeedEnabled then
                 Toggles.WalkSpeedEnabled:SetValue(PlayerSettings.WalkSpeedEnabled)
         end
@@ -15246,31 +14892,26 @@ PlayerModsGroup:AddSlider("QuickSpeedValue", {
 })
 Options.QuickSpeedValue:OnChanged(function()
         PlayerSettings.WalkSpeed = Options.QuickSpeedValue.Value
-        -- Sync the Player tab slider so both UI elements stay consistent
+
         if Options.WalkSpeedValue then
                 Options.WalkSpeedValue:SetValue(PlayerSettings.WalkSpeed)
         end
 end)
 
---// CONFIGURATION & CLEANUP ENGINE (SETTINGS TAB)
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
 
-MenuGroup:AddToggle("KeybindMenuOpen", { 
-        Default = Library.KeybindFrame.Visible, 
-        Text = "Open Keybind Menu", 
+MenuGroup:AddToggle("KeybindMenuOpen", {
+        Default = Library.KeybindFrame.Visible,
+        Text = "Open Keybind Menu",
         Callback = function(value) Library.KeybindFrame.Visible = value end
 })
 
 MenuGroup:AddToggle("ShowCustomCursor", {
-        Text = "Custom Cursor", 
-        Default = true, 
+        Text = "Custom Cursor",
+        Default = true,
         Callback = function(Value) Library.ShowCustomCursor = Value end
 })
 
---// DRAG MODE — toggle how the window can be dragged
--- "Header" = drag only by the title bar (default Linoria behavior)
--- "Anywhere" = drag from anywhere in the window (more flexible)
--- Linoria's MakeDraggable is always active on the main window; this is a visual hint toggle.
 MenuGroup:AddDropdown("DragMode", {
         Text = "Window Drag Mode",
         Values = { "Header Only", "Anywhere" },
@@ -15280,9 +14921,9 @@ MenuGroup:AddDropdown("DragMode", {
 })
 Options.DragMode:OnChanged(function()
         local mode = Options.DragMode.Value
-        -- Re-apply drag mode on the main window
+
         if LibraryMainOuterFrame then
-                -- Linoria's MakeDraggable is already set; we just notify the user
+
                 Library:Notify({
                         Title = "Drag Mode",
                         Description = "Drag mode: " .. mode .. " (applied)",
@@ -15305,7 +14946,7 @@ Options.WindowSizeSlider:OnChanged(function()
         if LibraryMainOuterFrame then
                 pcall(function()
                         LibraryMainOuterFrame.Size = UDim2.fromOffset(
-                                math.floor(newSize * 1.07),  -- width ~ 1.07x height
+                                math.floor(newSize * 1.07),
                                 newSize
                         )
                 end)
@@ -15335,22 +14976,21 @@ MenuGroup:AddButton({
 
 MenuGroup:AddDivider()
 
-MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
-        Default = "RightControl", 
-        NoUI = true, 
-        Text = "Menu keybind" 
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+        Default = "RightControl",
+        NoUI = true,
+        Text = "Menu keybind"
 })
 Library.ToggleKeybind = Options.MenuKeybind
 
 MenuGroup:AddButton({
         Text = "Unload UI (Delete Cheat)",
-        Func = function() 
-                Library:Unload() 
+        Func = function()
+                Library:Unload()
         end,
         DoubleClick = false,
 })
 
---// RUNTIME DISPOSAL CLEANUP HOOK
 local WatermarkConnection
 Library:OnUnload(function()
         if WatermarkConnection then WatermarkConnection:Disconnect() end
@@ -15366,26 +15006,24 @@ Library:OnUnload(function()
         for _, cache in pairs(EspRegistry) do
                 if cache.CurrentCham then cache.CurrentCham:Destroy() end
         end
-        -- Clean up skeleton drawings
+
         for _, lines in pairs(SkeletonCache) do
                 for _, line in ipairs(lines) do
                         pcall(function() line:Remove() end)
                 end
         end
         SkeletonCache = {}
-        -- Restore head hitbox sizes
+
         RestoreHeadScales()
-        -- Clean up Teleport Kill
+
         stopTeleportKill()
-        -- Clean up Auto Win
+
         RageMode.AutoWinEnabled = false
         stopAutoWin()
         Library.Unloaded = true
         print("Unloaded Zythera-X via Custom Hook Engine.")
 end)
 
---// WATERMARK REFRESH CONNECTION — fixed memory leak + local register limit
--- Wrapped in `do ... end` to release locals (Lua has a 200 local limit per scope).
 do
 local FrameTimer = tick()
 local PingTimer = tick()
@@ -15394,8 +15032,6 @@ local FPS = 60
 local CachedPing = 0
 local CanDoPing = false
 
---// One-time check: does Stats.Network.ServerStatsItem["Data Ping"] exist?
--- Wrapped in pcall so it never errors on executors that don't support it.
 pcall(function()
     local stats = game:GetService("Stats")
     local network = stats and stats:FindFirstChild("Network")
@@ -15405,24 +15041,22 @@ pcall(function()
     end
 end)
 
---// Refresh ping value once per second (NOT every frame) to avoid memory leak
 local function RefreshPing()
     if not CanDoPing then return end
     pcall(function()
         CachedPing = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
     end)
 end
-RefreshPing()  -- initial value
+RefreshPing()
 
 WatermarkConnection = RunService.RenderStepped:Connect(function()
         FrameCounter = FrameCounter + 1
 
-        -- Update FPS counter once per second
         if (tick() - FrameTimer) >= 1 then
                 FPS = FrameCounter
                 FrameTimer = tick()
                 FrameCounter = 0
-                -- Also refresh ping here (once per second, not every frame)
+
                 RefreshPing()
         end
 
@@ -15438,36 +15072,10 @@ WatermarkConnection = RunService.RenderStepped:Connect(function()
                 ))
         end
 end)
-end  -- end of watermark `do` block (releases ~8 locals)
+end
 
---// WALLBANG ENGINE — Desync + Gun.StartShooting + EncodeCFrame
---
--- APPROACH:
--- ✅ Hook Gun.StartShooting — Modify shot data at the source before server receives it
--- ✅ Desync — Temporarily move player near enemy during shot (server-side validation bypass)
--- ✅ EncodeCFrame — Use game's own encoding function for proper CFrame data
--- ✅ Shot data table modification — utf8.char keys for bullet origin, hit position, hit part, relative pos
--- ✅ Force hit confirmation — result[4] = true
--- ✅ ItemLibrary mods — ProjectileWallClipPreventionEnabled=false, RaycastPierceCount=10
--- ✅ hookmetamethod — Silent aim direction redirect for non-Wallbang mode
---
--- HOW IT WORKS:
--- When the player shoots, Gun.StartShooting creates shot data that gets sent to the server.
--- We intercept this and modify:
---   shotData[utf8.char(0)] = EncodeCFrame(bullet origin near enemy)
---   shotData[utf8.char(1)] = EncodeCFrame(hit position at enemy head)
---   shotData[utf8.char(2)] = Enemy Head part reference
---   shotData[utf8.char(3)] = EncodeCFrame(relative position)
---   result[4] = true (force hit confirmation)
---
--- Simultaneously, desync moves the player's HumanoidRootPart near the enemy
--- on Heartbeat, then restores original position on RenderStep (priority 101).
--- This makes the server's raycast validation succeed because from the server's
--- perspective, the player IS near the enemy.
+getgenv().silentAimTargetPos = nil
 
-getgenv().silentAimTargetPos = nil     -- Silent aim target position (for direction redirect)
-
---// WALLBANG ENGINE
 WallbangEngine = {
     active = false,
     desyncActive = false,
@@ -15507,7 +15115,6 @@ function WallbangEngine:init()
 
     self.gunModule = gun
 
-    -- Also get Utility module for EncodeCFrame
     local RS = ReplicatedStorage
     local utilRef = RS:FindFirstChild("Modules")
     if utilRef then
@@ -15528,14 +15135,8 @@ end
 
 function WallbangEngine:setup()
     if not self.gunModule then return end
-    if self.oldStartShooting then return end -- Already hooked
+    if self.oldStartShooting then return end
 
-    -- FULL POWER + STEALTH: use hookfunction + clonefunction + newcclosure
-    -- clonefunction saves a CLEAN copy of the original (so our hook can call it
-    -- without infinite recursion after hookfunction patches the original in-place).
-    -- newcclosure wraps our hook as a C closure (iscclosure=true) → harder to detect.
-    -- hookfunction patches the original IN-PLACE → the gunModule.StartShooting REFERENCE
-    -- stays unchanged, so AC reference checks pass (stealthier than direct assignment).
     local engine = self
     self.oldStartShooting = (clonefunction and clonefunction(self.gunModule.StartShooting)) or self.gunModule.StartShooting
     self.usedHookfunction = false
@@ -15543,69 +15144,52 @@ function WallbangEngine:setup()
     local hookFn = function(gunSelf, ...)
         local results = {engine.oldStartShooting(gunSelf, ...)}
 
-        -- Only modify for local player's gun
         if not gunSelf.ClientFighter or not gunSelf.ClientFighter.IsLocalPlayer then
             return unpack(results)
         end
 
-        -- Check if wallbang is active
         if not engine.active then
             return unpack(results)
         end
 
-        -- Get shot data table (3rd return value)
         local shotData = results[3]
         if not shotData or typeof(shotData) ~= "table" then
             return unpack(results)
         end
 
-        -- Find target
         local targetPlayer = engine.currentTarget
         if not targetPlayer or not targetPlayer.Character then
             return unpack(results)
         end
 
-        -- FULL POWER: force hit confirmation on every shot (AC is bypassed — safe)
         results[4] = true
 
-        -- Start CFrame teleport desync if target changed (or not active)
-        -- The desync must be active BEFORE we send shot data, so the server sees us
-        -- at the teleported position when it validates the hit.
         if not engine.desyncActive or engine.currentDesyncTarget ~= targetPlayer then
             engine:desyncStart(targetPlayer)
-            -- Wait one Heartbeat frame so the teleport takes effect server-side BEFORE
+
             task.wait(0.05)
         end
 
-        -- Cancel previous desync timer
         if engine.desyncTimer then
             task.cancel(engine.desyncTimer)
             engine.desyncTimer = nil
         end
 
-        -- Get enemy head — always target HEAD (full rage power)
         local enemyHead = targetPlayer.Character:FindFirstChild("Head")
         if not enemyHead then return unpack(results) end
 
         local headPos = enemyHead.Position
         local headCFrame = enemyHead.CFrame
 
-        -- Small jitter so each shot looks slightly different (±0.2 — not too random)
         local offsetX = math.random(-2, 2) / 10
         local offsetY = math.random(-2, 2) / 10
         local offsetZ = math.random(-2, 2) / 10
         local targetPos = headPos + Vector3.new(offsetX, offsetY, offsetZ)
 
-        -- Origin slightly below the hit point (bullet trajectory looks natural)
         local originPos = targetPos - Vector3.new(0, 2, 0)
         local lookAtCF = CFrame.lookAt(originPos, targetPos)
         local relativePos = headCFrame:ToObjectSpace(CFrame.new(targetPos))
 
-        -- Modify shot data using EncodeCFrame — direct head target (FULL POWER)
-        -- shotData[utf8.char(0)] = bullet origin CFrame (near target)
-        -- shotData[utf8.char(1)] = hit position CFrame (at target head)
-        -- shotData[utf8.char(2)] = hit part (enemy Head instance)
-        -- shotData[utf8.char(3)] = relative position CFrame
         if engine.utilityModule and engine.utilityModule.EncodeCFrame then
             shotData[utf8.char(0)] = engine.utilityModule:EncodeCFrame(CFrame.new(originPos, targetPos) * CFrame.Angles(lookAtCF:ToOrientation()))
             shotData[utf8.char(1)] = engine.utilityModule:EncodeCFrame(CFrame.new(targetPos) * CFrame.Angles(lookAtCF:ToOrientation()))
@@ -15613,7 +15197,6 @@ function WallbangEngine:setup()
             shotData[utf8.char(3)] = engine.utilityModule:EncodeCFrame(relativePos)
         end
 
-        -- Auto-stop desync after 0.15 seconds (stable hit window — external script uses 0.15)
         engine.desyncTimer = task.delay(0.3, function()
             engine:desyncStop()
         end)
@@ -15621,12 +15204,10 @@ function WallbangEngine:setup()
         return unpack(results)
     end
 
-    -- Wrap as C closure for stealth (iscclosure returns true → less detectable)
     if newcclosure then
         hookFn = newcclosure(hookFn)
     end
 
-    -- STEALTH: try hookfunction first (patches in-place, reference unchanged)
     local hooked = false
     pcall(function()
         if hookfunction then
@@ -15636,7 +15217,6 @@ function WallbangEngine:setup()
         end
     end)
 
-    -- Fallback: direct assignment (if hookfunction unavailable or failed)
     if not hooked then
         self.gunModule.StartShooting = hookFn
         engine.usedHookfunction = false
@@ -15678,23 +15258,8 @@ function WallbangEngine:findTarget()
     return closest
 end
 
---// WALLBANG DESYNC — CFrame Teleport Desync (PROVEN approach from external working script)
--- This is the SAME desync mechanism used by the working external wallbang script, but with
--- safety improvements:
---   1) newcclosure on the restore function (stealthier — iscclosure returns true)
---   2) Save/restore Velocity + RotVelocity too (so physics doesn't break)
---   3) Auto-expire after 0.5s per shot (not continuous — Heartbeat-driven but bounded)
---   4) Sanity checks: skip if no character, no HumanoidRootPart, no target root
---   5) Per-shot desync (not continuous loop) — only desyncs when a shot fires
---
--- HOW IT WORKS:
---   On Heartbeat (BEFORE render): teleport our root CFrame to (target.CFrame * CFrame.new(0,-5,0))
---   → server sees us 5 studs below target → server's hit validation sees us as "next to target"
---   On RenderStepped (priority 101, AFTER Heartbeat): restore our root CFrame to saved position
---   → client render shows us at our real position → no visual teleport
---   Net effect: server thinks we're at target, client sees us at real position → wallbang hits register
 function WallbangEngine:desyncStart(targetPlayer)
-    -- Clean up any existing desync connection/render binding
+
     if self.desyncConn then self.desyncConn:Disconnect() end
     pcall(function()
         RunService:UnbindFromRenderStep(self.desyncRestoreName)
@@ -15705,17 +15270,14 @@ function WallbangEngine:desyncStart(targetPlayer)
 
     local engine = self
     local desyncStartTime = tick()
-    -- Safety: bound the desync to 0.5s max per shot (external script used continuous; we bound it)
+
     local MAX_DESYNC_DURATION = 0.4
 
-    -- Save original CFrame/Velocity so we can restore on each render step
-    -- (we re-save on every Heartbeat in case our position changed between frames)
     local savedCFrame, savedVel, savedRotVel
 
     self.desyncConn = RunService.Heartbeat:Connect(function()
         if not engine.desyncActive then return end
 
-        -- Auto-expire after MAX_DESYNC_DURATION (safety)
         if tick() - desyncStartTime > MAX_DESYNC_DURATION then
             engine:desyncStop()
             return
@@ -15732,19 +15294,14 @@ function WallbangEngine:desyncStart(targetPlayer)
             return
         end
 
-        -- SAVE current state (so we can restore on next render step)
         savedCFrame = myRoot.CFrame
         savedVel = myRoot.AssemblyLinearVelocity
         savedRotVel = myRoot.AssemblyAngularVelocity
 
-        -- TELEPORT: place our root 5 studs below the target (same as external working script)
-        -- This is what the server sees — server validates "are we close enough to target for hit?"
         pcall(function()
             myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, -3, 0)
         end)
 
-        -- RESTORE on next render step (priority 101 = after most game code, before camera)
-        -- This is wrapped in newcclosure for stealth (iscclosure=true → harder to detect)
         local restoreFn
         restoreFn = function()
             if not engine.desyncActive or not savedCFrame then return end
@@ -15753,18 +15310,16 @@ function WallbangEngine:desyncStart(targetPlayer)
                 myRoot.AssemblyLinearVelocity = savedVel
                 myRoot.AssemblyAngularVelocity = savedRotVel
             end)
-            -- Unbind after restoring (single-shot restore per Heartbeat)
+
             pcall(function()
                 RunService:UnbindFromRenderStep(engine.desyncRestoreName)
             end)
         end
 
-        -- Wrap as C closure for stealth (if newcclosure available)
         if newcclosure then
             restoreFn = newcclosure(restoreFn)
         end
 
-        -- Bind the restore (single-use — unbinds itself after running)
         pcall(function()
             RunService:BindToRenderStep(engine.desyncRestoreName, 101, restoreFn)
         end)
@@ -15786,12 +15341,10 @@ end
 function WallbangEngine:start()
     self.active = true
 
-    -- Enable the stealth wallbang master flag (so __index hooks return our overrides)
     if WallbangStealthState then
         WallbangStealthState.enabled = true
     end
 
-    -- Initialize if needed (lazy load Gun/Utility modules)
     if not self.initialized then
         if not self:init() then
             Library:Notify({
@@ -15799,12 +15352,12 @@ function WallbangEngine:start()
                 Description = "Failed to load Gun module! Retrying...",
                 Time = 5
             })
-            -- Retry after delay
+
             task.delay(3, function()
                 if self.active and self:init() then
                     self:setup()
                     self:startTargetFinder()
-                    -- Apply mods ONCE (not constantly — constant re-apply was detected)
+
                     if not self.modsApplied then
                         applyWallbangMods()
                         self.modsApplied = true
@@ -15820,25 +15373,19 @@ function WallbangEngine:start()
         end
     end
 
-    -- Setup Gun.StartShooting hook
     self:setup()
 
-    -- Start target finder
     self:startTargetFinder()
 
-    -- Apply ItemLibrary mods ONCE (not constantly — constant re-apply triggers detection)
     if not self.modsApplied then
         applyWallbangMods()
         self.modsApplied = true
     end
 
-    -- FULL POWER: re-apply every 5 seconds (AC is bypassed, aggressive re-apply is safe)
-    -- With the STEALTH metamethod hook, raw values stay original but reads return our overrides.
-    -- So we check whether the metatable is still attached (via rawget vs normal access mismatch).
     task.spawn(function()
         while self.active and RageMode.Wallbang and RageMode.Enabled do
             task.wait(5)
-            -- Check if mods were reset (game replaced item tables), only re-apply if needed
+
             pcall(function()
                 local RS = ReplicatedStorage
                 local Items = require(RS:WaitForChild("Modules", 10):WaitForChild("ItemLibrary", 10)).Items
@@ -15851,18 +15398,17 @@ function WallbangEngine:start()
                         if WallbangStealthState.applied[data] then
                             trackedCount = trackedCount + 1
                         end
-                        -- Detection: if our hook is gone, raw access == normal access
-                        -- (rawget bypasses __index, so if metatable is missing, both return same value)
+
                         local rawVal = rawget(data, "ProjectileWallClipPreventionEnabled")
                         local readVal = data.ProjectileWallClipPreventionEnabled
                         if rawVal == true and readVal == true then
-                            -- Metatable not attached (or hook broken) → re-apply
+
                             needsReapply = true
                             break
                         end
                     end
                 end
-                -- Also re-apply if item count changed (new weapons spawned)
+
                 if trackedCount < itemCount then
                     needsReapply = true
                 end
@@ -15883,7 +15429,7 @@ end
 
 function WallbangEngine:startTargetFinder()
     if self.targetFinderConn then self.targetFinderConn:Disconnect() end
-    -- Use slower target finder (every 0.1s instead of every frame — less suspicious)
+
     self.targetFinderConn = RunService.Heartbeat:Connect(function()
         if not self.active then return end
         self.currentTarget = self:findTarget()
@@ -15894,61 +15440,51 @@ function WallbangEngine:stop()
     self.active = false
     self.currentTarget = nil
 
-    -- Disable the stealth wallbang master flag.
-    -- The __index hooks will now pass through to original values (no override).
-    -- We do NOT need to unhook the metatables — they stay attached but become inert.
     if WallbangStealthState then
         WallbangStealthState.enabled = false
         wbDebug("wallbang disabled — stealth hooks now pass-through")
     end
 
-    -- Stop desync
     self:desyncStop()
 
-    -- Stop target finder
     if self.targetFinderConn then
         self.targetFinderConn:Disconnect()
         self.targetFinderConn = nil
     end
 
-    -- Cancel desync timer
     if self.desyncTimer then
         task.cancel(self.desyncTimer)
         self.desyncTimer = nil
     end
 
-    -- Restore Gun.StartShooting
     if self.oldStartShooting and self.gunModule then
-        -- If we used hookfunction, patch back to the original (in-place restore)
+
         if self.usedHookfunction and hookfunction then
             pcall(function()
                 hookfunction(self.gunModule.StartShooting, self.oldStartShooting)
             end)
         end
-        -- Also restore via direct assignment (covers both hookfunction + fallback cases)
+
         self.gunModule.StartShooting = self.oldStartShooting
         self.oldStartShooting = nil
         self.usedHookfunction = false
     end
 
-    -- Reset globals
     getgenv().silentAimTargetPos = nil
 end
 
---// METAMETHOD HOOK — Silent Aim direction redirect only
 pcall(function()
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
 
-        -- Intercept workspace:Raycast — Silent Aim direction redirect
         if not checkcaller() and self == workspace and (method == "Raycast" or method == "raycast") then
             local origin = args[1]
             local direction = args[2]
 
             if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-                -- SILENT AIM / RAGE MODE: Just redirect direction to target
+
                 if getgenv().silentAimTargetPos and direction.Magnitude > 50 then
                     args[2] = (getgenv().silentAimTargetPos - origin).Unit * direction.Magnitude
                     return oldNamecall(self, unpack(args))
@@ -15960,7 +15496,6 @@ pcall(function()
     end))
 end)
 
---// HOOK MODULE UTILITY ENGINE (Silent Aim + Rage Mode Bullet Redirection)
 task.spawn(function()
     task.wait(3)
     local modules = ReplicatedStorage:WaitForChild("Modules", 5)
@@ -15971,8 +15506,7 @@ task.spawn(function()
     local old_rc = utility.Raycast
     utility.Raycast = function(...)
         local args = {...}
-        -- [V5] Broadened detection: match ANY game script (not our own)
-        -- Old code only matched "Weapon"/"Gun"/"Client" — too restrictive
+
         local current_script = debug.info(2, "s") or ""
         local isWeaponScript = current_script and (
             current_script:find("Weapon") or
@@ -15986,14 +15520,11 @@ task.spawn(function()
             current_script:find("Attack") or
             current_script:find("Shoot") or
             current_script:find("Projectile") or
-            true  -- [V5] If all else fails, allow it (better to redirect too much than not at all)
+            true
         )
 
-        -- [V5] Silent Aim: first bullet hits, then cooldown before next hit
-        -- If enough time passed since last hit, redirect this bullet to target
-        -- Otherwise, bullet goes to normal crosshair position (no redirect)
         if SilentAim.Enabled and isWeaponScript then
-            -- Decision: should this bullet hit the target?
+
             local shouldHit = silentAimShouldHit()
 
             if shouldHit then
@@ -16001,25 +15532,25 @@ task.spawn(function()
                 if hit then
                     local jitter = Vector3.new(math.random(-5,5)/100, math.random(-5,5)/100, math.random(-5,5)/100)
                     local targetPosition = hit.Position
-                    -- Apply projectile prediction if enabled
+
                     if SilentAim.ProjectilePrediction and hit.Parent and hit.Parent:FindFirstChild("HumanoidRootPart") then
                         local weaponName = getCurrentWeaponName()
                         targetPosition = calculateProjectilePrediction(targetPosition, hit.Parent.HumanoidRootPart, weaponName, SilentAim.Prediction)
                     elseif hit.Parent and hit.Parent:FindFirstChild("HumanoidRootPart") then
-                        -- [V3] Use Velocity (more reliable than AssemblyLinearVelocity for character prediction)
+
                         local hrp = hit.Parent.HumanoidRootPart
-                        local vel = hrp.Velocity  -- Rage Hub style: Velocity is more accurate for character movement
-                        -- If Velocity is zero (e.g. anchored character), fall back to AssemblyLinearVelocity
+                        local vel = hrp.Velocity
+
                         if vel.Magnitude < 0.1 then
                             vel = hrp.AssemblyLinearVelocity
                         end
                         targetPosition = targetPosition + (vel * SilentAim.Prediction)
                     end
-                    -- Redirect this bullet's hit position to the target
+
                     args[3] = targetPosition + jitter
-                    -- Set global for hookmetamethod hook (workspace:Raycast direction redirect)
+
                     getgenv().silentAimTargetPos = targetPosition + jitter
-                    -- Also modify filter for Wall Check bypass
+
                     if SilentAim.WallCheck then
                         if typeof(args[5]) == "table" then
                             for _, plr in pairs(players:GetPlayers()) do
@@ -16036,38 +15567,37 @@ task.spawn(function()
                         end
                     end
                 else
-                    -- No target found this shot: clear the redirect so the bullet goes normal
+
                     getgenv().silentAimTargetPos = nil
                 end
             else
-                -- [V5] Cooldown active: don't redirect — bullet goes to crosshair
+
                 getgenv().silentAimTargetPos = nil
             end
-        -- Rage Mode — redirect bullets to target
+
         elseif RageMode.Enabled and isWeaponScript then
             local rageTarget = get_best_target(RageMode)
             if rageTarget then
                 local jitter = Vector3.new(math.random(-5,5)/100, math.random(-5,5)/100, math.random(-5,5)/100)
                 local targetPosition = rageTarget.Position
                 if rageTarget.Parent and rageTarget.Parent:FindFirstChild("HumanoidRootPart") then
-                    -- [V3] Use Velocity for better prediction
+
                     local hrp = rageTarget.Parent.HumanoidRootPart
                     local vel = hrp.Velocity
                     if vel.Magnitude < 0.1 then vel = hrp.AssemblyLinearVelocity end
                     targetPosition = targetPosition + (vel * 0.08)
                 end
                 targetPosition = targetPosition + jitter
-                -- Change target position (arg3)
+
                 args[3] = targetPosition
 
-                -- Set global for hookmetamethod hook (silent aim direction redirect)
                 getgenv().silentAimTargetPos = targetPosition
             else
-                -- No target: clear globals
+
                 getgenv().silentAimTargetPos = nil
             end
         else
-            -- No aim mode active: clear globals
+
             getgenv().silentAimTargetPos = nil
         end
 
@@ -16075,11 +15605,6 @@ task.spawn(function()
     end
 end)
 
-
--- ============================================================
--- [V3 from Rage Hub] SERVER HOP BUTTON
--- Finds a non-full server and teleports to it
--- ============================================================
 local function serverHop()
     local placeId = game.PlaceId
     local jobId = game.JobId
@@ -16097,7 +15622,6 @@ local function serverHop()
 end
 getgenv().serverHop = serverHop
 
---// MANAGEMENT STORAGE AND RETRIEVAL INITIALIZATION
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 
