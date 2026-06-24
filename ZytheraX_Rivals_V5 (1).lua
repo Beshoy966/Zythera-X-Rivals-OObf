@@ -10178,7 +10178,6 @@ local HoldBotGroup = Tabs.Combat:AddRightGroupbox("Aimbot")
 local TeamCheckGroup = Tabs.Combat:AddLeftGroupbox("Team Check")
 local HoldBotTargetGroup = HoldBotGroup
 local TriggerBotGroup = Tabs.Combat:AddRightGroupbox("Trigger Bot")
-local AntiAimGroup = Tabs.Combat:AddRightGroupbox("Anti-Aim")
 local OrbitGroup = Tabs.Combat:AddRightGroupbox("Orbit")
 local EspGroup = Tabs.ESP:AddLeftGroupbox("ESP Switches")
 local EspVisualGroup = Tabs.ESP:AddRightGroupbox("ESP Appearance")
@@ -10349,75 +10348,6 @@ local HoldBot = {
     _lastTargetSwitch = 0,
 }
 
-local AntiAim = {
-    Enabled = false,
-    Speed = 20,
-    Mode = "Spin",
-    JitterRange = 90,
-}
-
-local antiAimYaw = 0
-local antiAimJitterTarget = 0
-local antiAimJitterTimer = 0
-local antiAimWasEnabled = false
-
-local function antiAimStep()
-
-    if not AntiAim.Enabled then
-        if antiAimWasEnabled then
-            antiAimWasEnabled = false
-            pcall(function()
-                local char = player.Character
-                if char then
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum then hum.AutoRotate = true end
-                end
-            end)
-        end
-        return
-    end
-    antiAimWasEnabled = true
-
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
-
-    if hum.AutoRotate then
-        hum.AutoRotate = false
-    end
-
-    if AntiAim.Mode == "Spin" then
-
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(AntiAim.Speed), 0)
-
-    elseif AntiAim.Mode == "Jitter" then
-
-        antiAimJitterTimer = antiAimJitterTimer + 1
-        if antiAimJitterTimer >= 8 then
-            antiAimJitterTimer = 0
-            antiAimJitterTarget = math.random(-AntiAim.JitterRange, AntiAim.JitterRange)
-        end
-
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(antiAimJitterTarget / 8), 0)
-
-    elseif AntiAim.Mode == "Reverse" then
-
-        local cam = workspace.CurrentCamera
-        if cam then
-            local look = cam.CFrame.LookVector
-            local targetPos = root.Position - look
-            root.CFrame = CFrame.new(root.Position, targetPos)
-        else
-            root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(AntiAim.Speed), 0)
-        end
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    pcall(antiAimStep)
-end)
 
 local PlayerSettings = {
     InfiniteJump = false,
@@ -11029,7 +10959,12 @@ local function get_best_target(config)
         return nil
     end
 
-    for _, v in pairs(players:GetPlayers()) do
+    local camPos = camera.CFrame.Position
+    local liveLpChar = lp.Character
+    local useWallCheck = config.WallCheck == true
+    local playerList = players:GetPlayers()
+
+    for _, v in ipairs(playerList) do
         if v ~= lp and v.Character then
 
             if isTeammate(v) then continue end
@@ -11043,37 +10978,43 @@ local function get_best_target(config)
             if not hitPart then
                 continue
             end
-            local pos, onScreen = camera:WorldToViewportPoint(hitPart.Position)
+            local partPos = hitPart.Position
+            local pos, onScreen = camera:WorldToViewportPoint(partPos)
             if onScreen then
                 local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
                 if mag < config.FOV then
 
-                    local dist3D = (camera.CFrame.Position - hitPart.Position).Magnitude
+                    local dist3D = (camPos - partPos).Magnitude
                     if dist3D > maxDistance then
                         continue
                     end
 
                     local isVisible = true
 
-                    if config.WallCheck then
-
-                        local liveLpChar = lp.Character
+                    if useWallCheck then
                         local liveTargetChar = v.Character
-                        local origin = camera.CFrame.Position
-                        local targetPos = hitPart.Position
-                        local direction = targetPos - origin
+                        local direction = partPos - camPos
+                        local filterList = {liveLpChar}
+                        for _, otherPlr in ipairs(playerList) do
+                            if otherPlr ~= lp and otherPlr ~= v and otherPlr.Character then
+                                filterList[#filterList + 1] = otherPlr.Character
+                            end
+                        end
                         local rayParams = RaycastParams.new()
                         rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                        rayParams.FilterDescendantsInstances = {liveLpChar, liveTargetChar, camera}
+                        rayParams.FilterDescendantsInstances = filterList
                         rayParams.IgnoreWater = true
-                        rayParams.RespectCanCollide = false
-                        local result = workspace:Raycast(origin, direction, rayParams)
+                        rayParams.RespectCanCollide = true
+                        local result = workspace:Raycast(camPos, direction, rayParams)
 
                         if result and result.Instance and result.Instance:IsA("BasePart") then
 
                             local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
                             if hitChar ~= liveTargetChar then
-                                isVisible = false
+                                local inst = result.Instance
+                                if inst.CanCollide or inst.Transparency < 1 then
+                                    isVisible = false
+                                end
                             end
                         end
                     end
@@ -11300,16 +11241,25 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
                         local origin = camera.CFrame.Position
                         local targetPos = target.Position
                         local direction = targetPos - origin
+                        local filterList = {liveLpChar}
+                        for _, otherPlr in ipairs(players:GetPlayers()) do
+                            if otherPlr ~= lp and otherPlr ~= v and otherPlr.Character then
+                                filterList[#filterList + 1] = otherPlr.Character
+                            end
+                        end
                         local rayParams = RaycastParams.new()
                         rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                        rayParams.FilterDescendantsInstances = {liveLpChar, persistChar, camera}
+                        rayParams.FilterDescendantsInstances = filterList
                         rayParams.IgnoreWater = true
-                        rayParams.RespectCanCollide = false
+                        rayParams.RespectCanCollide = true
                         local result = workspace:Raycast(origin, direction, rayParams)
                         if result and result.Instance and result.Instance:IsA("BasePart") then
                             local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
                             if hitChar ~= persistChar then
-                                target = nil
+                                local inst = result.Instance
+                                if inst.CanCollide or inst.Transparency < 1 then
+                                    target = nil
+                                end
                             end
                         end
                     end
@@ -11361,10 +11311,10 @@ pipelineConnection = rs.RenderStepped:Connect(function(deltaTime)
 
             if HoldBot.UseSmoothing then
                 local sm = math.max(HoldBot.SmoothingValue, 1)
-                local speedFactor = 20 / sm
-                local frameAlpha = 1 - math.exp(-deltaTime * speedFactor)
-                local moveX = rawDeltaX * frameAlpha
-                local moveY = rawDeltaY * frameAlpha
+                local lerpFactorX = sm <= 0.001 and 1 or 1 - math.exp(-(1 / sm) * deltaTime * 20)
+                local lerpFactorY = sm <= 0.001 and 1 or 1 - math.exp(-(1 / sm) * deltaTime * 20)
+                local moveX = rawDeltaX * lerpFactorX
+                local moveY = rawDeltaY * lerpFactorY
                 local blendFactor = math.clamp(0.08 + (sm * 0.009), 0.08, 0.26)
                 moveX = holdBotPrevX * blendFactor + moveX * (1 - blendFactor)
                 moveY = holdBotPrevY * blendFactor + moveY * (1 - blendFactor)
@@ -13217,51 +13167,6 @@ Toggles.TriggerBotKeybind:OnChanged(function()
         TriggerBot.Keybind = Toggles.TriggerBotKeybind.Value
 end)
 
-AntiAimGroup:AddToggle("AntiAimEnabled", {
-        Text = "Enable Anti-Aim",
-        Default = AntiAim.Enabled,
-        Tooltip = "Rotates your character each frame to mess up enemy aimbots. Simple but works.",
-})
-Toggles.AntiAimEnabled:OnChanged(function()
-        AntiAim.Enabled = Toggles.AntiAimEnabled.Value
-end)
-
-AntiAimGroup:AddDropdown("AntiAimMode", {
-        Values = { "Spin", "Jitter", "Reverse" },
-        Default = 1,
-        Multi = false,
-        Text = "Mode",
-        Tooltip = "Spin=continuous rotation | Jitter=random angle jumps | Reverse=face backwards",
-})
-Options.AntiAimMode:OnChanged(function()
-        AntiAim.Mode = Options.AntiAimMode.Value
-end)
-
-AntiAimGroup:AddSlider("AntiAimSpeed", {
-        Text = "Spin Speed",
-        Default = AntiAim.Speed,
-        Min = 5,
-        Max = 45,
-        Rounding = 0,
-        Suffix = " deg",
-        Tooltip = "Degrees per frame (higher = faster rotation)",
-})
-Options.AntiAimSpeed:OnChanged(function()
-        AntiAim.Speed = Options.AntiAimSpeed.Value
-end)
-
-AntiAimGroup:AddSlider("AntiAimJitterRange", {
-        Text = "Jitter Range",
-        Default = AntiAim.JitterRange,
-        Min = 10,
-        Max = 180,
-        Rounding = 0,
-        Suffix = " deg",
-        Tooltip = "Max random angle for Jitter mode",
-})
-Options.AntiAimJitterRange:OnChanged(function()
-        AntiAim.JitterRange = Options.AntiAimJitterRange.Value
-end)
 end
 
 do
@@ -14826,76 +14731,6 @@ TeamDebugGroup:AddButton("Toggle Team Check Debug Mode", function()
                 Description = "Debug mode: " .. (TeamCheck.DebugMode and "ON" or "OFF"),
                 Time = 4
         })
-end)
-
-local PlayerModsGroup = Tabs.Player:AddLeftGroupbox("Player Mods (Quick Access)")
-
-PlayerModsGroup:AddToggle("QuickHitboxExpander", {
-        Text = "Hitbox Expander (5x)",
-        Default = false,
-        Tooltip = "Quick toggle: enlarges enemy heads to 5x size for easier aiming (mirrors ESP tab slider)",
-})
-Toggles.QuickHitboxExpander:OnChanged(function()
-        if Toggles.QuickHitboxExpander.Value then
-                EspSettings.HeadScale = 5
-        else
-                EspSettings.HeadScale = 1
-                RestoreHeadScales()
-        end
-
-        if Options.HeadHitboxScale then
-                Options.HeadHitboxScale:SetValue(EspSettings.HeadScale)
-        end
-end)
-
-PlayerModsGroup:AddToggle("QuickInfiniteJump", {
-        Text = "Infinite Jump",
-        Default = PlayerSettings.InfiniteJump,
-        Tooltip = "Jump unlimited times without touching the ground",
-})
-Toggles.QuickInfiniteJump:OnChanged(function()
-        PlayerSettings.InfiniteJump = Toggles.QuickInfiniteJump.Value
-
-        if Toggles.InfiniteJump then
-                Toggles.InfiniteJump:SetValue(PlayerSettings.InfiniteJump)
-        end
-end)
-
-PlayerModsGroup:AddToggle("QuickSpeedHack", {
-        Text = "Speed Hack",
-        Default = PlayerSettings.WalkSpeedEnabled,
-        Tooltip = "Override your WalkSpeed (default 50, normal is 16)",
-})
-Toggles.QuickSpeedHack:OnChanged(function()
-        PlayerSettings.WalkSpeedEnabled = Toggles.QuickSpeedHack.Value
-
-        if Toggles.WalkSpeedEnabled then
-                Toggles.WalkSpeedEnabled:SetValue(PlayerSettings.WalkSpeedEnabled)
-        end
-        if not PlayerSettings.WalkSpeedEnabled then
-                local char = lp.Character
-                if char then
-                        local hum = char:FindFirstChildOfClass("Humanoid")
-                        if hum then pcall(function() hum.WalkSpeed = 16 end) end
-                end
-        end
-end)
-
-PlayerModsGroup:AddSlider("QuickSpeedValue", {
-        Text = "Speed Value",
-        Default = PlayerSettings.WalkSpeed,
-        Min = 16,
-        Max = 200,
-        Rounding = 0,
-        Suffix = " ws",
-        Tooltip = "WalkSpeed value (16 = normal, 50 = fast, 200 = insane)",
-})
-Options.QuickSpeedValue:OnChanged(function()
-        PlayerSettings.WalkSpeed = Options.QuickSpeedValue.Value
-
-        if Options.WalkSpeedValue then
-                Options.WalkSpeedValue:SetValue(PlayerSettings.WalkSpeed)
-        end
 end)
 
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
